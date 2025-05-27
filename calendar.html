@@ -1,328 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Daylee Calendar</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 0;
-      background: #f8f9fa;
-    }
-    header {
-      background-color: #0d6efd;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-    }
-    #notification {
-      background-color: #ffc107;
-      color: black;
-      padding: 0.5rem;
-      text-align: center;
-      display: none;
-    }
-    #calendarGrid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 1px;
-      background-color: #dee2e6;
-      padding: 1rem;
-    }
-    .calendar-cell {
-      background: white;
-      padding: 0.5rem;
-      height: 100px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      cursor: pointer;
-      position: relative;
-    }
-    .event-badge {
-      background: #0d6efd;
-      color: white;
-      font-size: 0.75rem;
-      padding: 2px 4px;
-      margin-top: 4px;
-      display: inline-block;
-      border-radius: 4px;
-    }
-    .modal-bg {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 999;
-    }
-    .modal {
-      background: white;
-      padding: 1rem;
-      width: 300px;
-      border-radius: 8px;
-    }
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .modal-header button {
-      background: none;
-      border: none;
-      font-size: 1.2rem;
-      cursor: pointer;
-    }
-    form > div {
-      margin-bottom: 0.75rem;
-    }
-    button {
-      background: #0d6efd;
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>Daylee Family Calendar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A powerful, shared calendar for your whole family">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
+  <link href="/css/main.css" rel="stylesheet">
+  <link href="/css/home.css" rel="stylesheet">
+  <link href="/css/calendar.css" rel="stylesheet">
 </head>
 <body>
-
+  <a href="/dashboard" id="top-link" style="color:#2563eb;text-decoration:none;font-weight:600;font-size:1.1em;display:block;margin:1.5em 0 0 2em;">&lt; Dashboard</a>
   <header>
-    <h1>Daylee Family Calendar</h1>
+    <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
+    <br>
+    <span class="calendar-title">Family Calendar</span>
+    <div class="calendar-subtitle">A powerful, shared calendar for your whole family</div>
   </header>
-
-  <div id="notification"></div>
-
-  <div id="calendarGrid"></div>
-
-  <!-- View Day Modal -->
-  <div id="dayModalBg" class="modal-bg">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 id="selectedDateDisplay">Events</h3>
-        <button id="closeDayModal">&times;</button>
-      </div>
-      <ul id="eventList"></ul>
-      <button id="addEventButton">+ Add Event</button>
+  <div class="calendar-container" style="position:relative;">
+    <button class="add-event-btn" id="addEventBtn" title="Add Event">+</button>
+    <div class="calendar-controls">
+      <button id="prevMonth">&lt;</button>
+      <span id="monthYear"></span>
+      <button id="nextMonth">&gt;</button>
     </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
   </div>
-
-  <!-- Add Event Modal -->
-  <div id="eventModalBg" class="modal-bg">
+  <!-- Modal for adding/editing event -->
+  <div class="modal-bg" id="eventModalBg" style="display:none;">
     <div class="modal">
-      <div class="modal-header">
-        <h3>Add Event</h3>
-        <button id="closeEventModal">&times;</button>
-      </div>
-      <form id="eventForm">
-        <div>
-          <label>Title</label>
-          <input type="text" id="eventTitle" required />
-        </div>
-        <div>
-          <label>Time</label>
-          <input type="time" id="eventTime" />
-        </div>
-        <div>
-          <label>Description</label>
-          <textarea id="eventDesc" rows="2"></textarea>
-        </div>
-        <input type="hidden" id="eventDate" />
+      <button class="modal-close" id="closeEventModal">&times;</button>
+      <div class="modal-title" id="eventModalTitle">Add Event</div>
+      <form class="modal-form" id="eventForm">
+        <input type="text" id="eventTitle" placeholder="Event Title" required>
+        <input type="date" id="eventDate" required>
+        <input type="time" id="eventTime">
+        <input type="text" id="eventLocation" placeholder="Location (optional)">
+        <select id="eventCategory">
+          <option value="">Category (optional)</option>
+          <option value="Birthday">Birthday</option>
+          <option value="Appointment">Appointment</option>
+          <option value="School">School</option>
+          <option value="Work">Work</option>
+          <option value="Holiday">Holiday</option>
+          <option value="Other">Other</option>
+        </select>
+        <input type="color" id="eventColor" value="#2563eb" title="Event Color">
+        <label style="font-size:0.97em;"><input type="checkbox" id="eventPrivate"> Private</label>
+        <label style="font-size:0.97em;">Reminder: <input type="number" id="eventReminder" min="0" max="1440" step="5" style="width:5em;"> min before</label>
+        <textarea id="eventDesc" placeholder="Description"></textarea>
         <button type="submit">Save Event</button>
       </form>
     </div>
   </div>
+  <div id="notification" style="display:none;position:fixed;top:1.2rem;right:1.2rem;z-index:12000;min-width:220px;max-width:90vw;padding:1rem 1.5rem;background:linear-gradient(90deg,#2563eb 0%,#06b6d4 100%);color:#fff;font-size:1.1rem;font-weight:600;border-radius:1em;box-shadow:0 4px 24px #2563eb33;transition:opacity 0.3s,transform 0.3s;opacity:0;pointer-events:none;"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // --- Supabase Setup ---
+    const SUPABASE_URL = "https://qfgmcnbqhhelrdxvdrdb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZ21jbmJxaGhlbHJkeHZkcmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMTY2OTgsImV4cCI6MjA2MzY5MjY5OH0.OZhA0jmUmGcQ5ZJs3gxy99blGsz7YyRJyBfiHDDAWIc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  <script type="module" src="daylee.js">
-import { createClient } from "https://cdn.skypack.dev/@supabase/supabase-js";
+    // --- State ---
+    let userProfile = null, familyId = null, familyRole = null, familyCode = null;
+    let familyEvents = [];
+    let editingEventIndex = null;
+    const calendarGrid = document.getElementById('calendarGrid');
+    const monthYear = document.getElementById('monthYear');
+    const prevMonthBtn = document.getElementById('prevMonth');
+    const nextMonthBtn = document.getElementById('nextMonth');
+    const addEventBtn = document.getElementById('addEventBtn');
+    const eventModalBg = document.getElementById('eventModalBg');
+    const closeEventModal = document.getElementById('closeEventModal');
+    const eventForm = document.getElementById('eventForm');
+    const eventModalTitle = document.getElementById('eventModalTitle');
+    const eventTitle = document.getElementById('eventTitle');
+    const eventDate = document.getElementById('eventDate');
+    const eventTime = document.getElementById('eventTime');
+    const eventDesc = document.getElementById('eventDesc');
+    const eventColor = document.getElementById('eventColor');
+    const eventCategory = document.getElementById('eventCategory');
+    const eventPrivate = document.getElementById('eventPrivate');
+    const eventReminder = document.getElementById('eventReminder');
+    const eventLocation = document.getElementById('eventLocation');
+    let today = new Date();
+    let currentMonth = today.getMonth();
+    let currentYear = today.getFullYear();
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const supabase = createClient(
-  "https://yokrcscbxfqucigedgqn.supabase.co",
-  "your-supabase-anon-key"
-);
+    // --- Load Profile & Family ---
+    async function getProfileAndFamily() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/signin.html"; return; }
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (!profile) { alert("No profile found."); return; }
+      userProfile = profile;
+      familyId = profile.family_id;
+      familyRole = profile.role;
+      // Get family code for invites
+      const { data: fam } = await supabase.from('families').select('*').eq('id', familyId).single();
+      familyCode = fam ? fam.code : null;
+    }
 
-let myProfile = null;
-let myFamilyId = null;
-let myOwnerName = "";
-let myOwnerEmail = "";
-let familyEvents = [];
+    // --- Load Family Events ---
+    async function loadFamilyEvents() {
+      if (!familyId) return;
+      const { data: cal } = await supabase.from('calendars').select('*').eq('family_id', familyId).maybeSingle();
+      familyEvents = [];
+      if (cal && cal.events) {
+        familyEvents = Array.isArray(cal.events) ? cal.events : JSON.parse(cal.events);
+      }
+      renderCalendar(currentMonth, currentYear);
+    }
 
-const calendarGrid = document.getElementById("calendarGrid");
-const dayModalBg = document.getElementById("dayModalBg");
-const eventModalBg = document.getElementById("eventModalBg");
-const selectedDateDisplay = document.getElementById("selectedDateDisplay");
-const eventForm = document.getElementById("eventForm");
-const eventTitle = document.getElementById("eventTitle");
-const eventTime = document.getElementById("eventTime");
-const eventDesc = document.getElementById("eventDesc");
-const eventDate = document.getElementById("eventDate");
-const notification = document.getElementById("notification");
+    // --- Save Family Events ---
+    async function saveFamilyEvents(events) {
+      if (!familyId) return;
+      await supabase.from('calendars').upsert([{ family_id: familyId, events }]);
+    }
 
-async function getProfileAndFamily() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) {
-    showNotification("Please sign in.");
-    return null;
-  }
+    // --- Calendar Rendering ---
+    function renderCalendar(month, year) {
+      calendarGrid.innerHTML = '';
+      daysOfWeek.forEach(day => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'calendar-day';
+        dayDiv.textContent = day;
+        calendarGrid.appendChild(dayDiv);
+      });
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let i = 0; i < firstDay; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'calendar-cell';
+        blank.style.background = 'transparent';
+        blank.style.cursor = 'default';
+        calendarGrid.appendChild(blank);
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell';
+        const cellDate = new Date(year, month, day);
+        const cellDateStr = cellDate.toISOString().slice(0, 10);
+        if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+          cell.classList.add('today');
+        }
+        const dayNum = document.createElement('div');
+        dayNum.className = 'calendar-day-number';
+        dayNum.textContent = day;
+        cell.appendChild(dayNum);
+        const dayEvents = familyEvents.filter(e => e.date === cellDateStr);
+        if (dayEvents.length > 0) {
+          const eventsDiv = document.createElement('div');
+          eventsDiv.className = 'calendar-events';
+          dayEvents.forEach((e, idx) => {
+            const ev = document.createElement('div');
+            ev.className = 'calendar-event';
+            ev.innerHTML =
+              `<span class="event-color" style="background:${e.color || '#2563eb'}"></span>` +
+              (e.time ? `<b>${e.time}</b> ` : '') +
+              `<span>${e.title}</span>` +
+              (e.category ? `<span class="event-category">${e.category}</span>` : '') +
+              (e.private ? `<span class="event-private">Private</span>` : '') +
+              (e.reminder ? `<span class="event-reminder">🔔${e.reminder}m</span>` : '') +
+              (e.location ? `<span class="event-location">📍${e.location}</span>` : '') +
+              (e.desc ? `<div class="event-desc">${e.desc}</div>` : '');
+            ev.innerHTML += `<button class="event-edit-btn" title="Edit" onclick="event.stopPropagation();editEvent(${idx});">✏️</button>`;
+            ev.innerHTML += `<button class="event-delete-btn" title="Delete" onclick="event.stopPropagation();deleteEvent(${idx});">🗑️</button>`;
+            eventsDiv.appendChild(ev);
+          });
+          cell.appendChild(eventsDiv);
+        }
+        cell.addEventListener('click', () => editEventForDay(cellDateStr));
+        calendarGrid.appendChild(cell);
+      }
+    }
 
-  const user = data.user;
+    function updateMonthYear() {
+      const date = new Date(currentYear, currentMonth);
+      const options = { month: 'long', year: 'numeric' };
+      monthYear.textContent = date.toLocaleDateString(undefined, options);
+    }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("email", user.email)
-    .single();
+    prevMonthBtn.onclick = function() {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      updateMonthYear();
+      renderCalendar(currentMonth, currentYear);
+    };
+    nextMonthBtn.onclick = function() {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      updateMonthYear();
+      renderCalendar(currentMonth, currentYear);
+    };
 
-  if (profileError || !profile) {
-    showNotification("No profile found.");
-    return null;
-  }
+    // --- Add/Edit Event Modal ---
+    addEventBtn.onclick = function() {
+      editingEventIndex = null;
+      eventModalTitle.textContent = "Add Event";
+      eventModalBg.style.display = 'flex';
+      eventTitle.value = '';
+      eventDate.value = '';
+      eventTime.value = '';
+      eventDesc.value = '';
+      eventColor.value = '#2563eb';
+      eventCategory.value = '';
+      eventPrivate.checked = false;
+      eventReminder.value = '';
+      eventLocation.value = '';
+    };
+    closeEventModal.onclick = function() {
+      eventModalBg.style.display = 'none';
+    };
+    eventModalBg.onclick = function(e) {
+      if (e.target === eventModalBg) eventModalBg.style.display = 'none';
+    };
 
-  myProfile = profile;
-  myFamilyId = profile.family_id;
-  myOwnerName = profile.name;
-  myOwnerEmail = profile.email;
-  return profile;
-}
+    function editEvent(idx) {
+      editingEventIndex = idx;
+      const e = familyEvents[idx];
+      eventModalTitle.textContent = "Edit Event";
+      eventModalBg.style.display = 'flex';
+      eventTitle.value = e.title;
+      eventDate.value = e.date;
+      eventTime.value = e.time || '';
+      eventDesc.value = e.desc || '';
+      eventColor.value = e.color || '#2563eb';
+      eventCategory.value = e.category || '';
+      eventPrivate.checked = !!e.private;
+      eventReminder.value = e.reminder || '';
+      eventLocation.value = e.location || '';
+    }
 
-async function loadFamilyCalendar() {
-  if (!myFamilyId) return;
+    function editEventForDay(dateStr) {
+      editingEventIndex = null;
+      eventModalTitle.textContent = "Add Event";
+      eventModalBg.style.display = 'flex';
+      eventTitle.value = '';
+      eventDate.value = dateStr;
+      eventTime.value = '';
+      eventDesc.value = '';
+      eventColor.value = '#2563eb';
+      eventCategory.value = '';
+      eventPrivate.checked = false;
+      eventReminder.value = '';
+      eventLocation.value = '';
+    }
 
-  const { data, error } = await supabase
-    .from("calendars")
-    .select("events")
-    .eq("family_id", myFamilyId)
-    .single();
+    window.editEvent = editEvent;
 
-  if (error) {
-    console.error("Failed to load calendar:", error);
-    showNotification("Error loading calendar.");
-    return;
-  }
+    window.deleteEvent = async function(idx) {
+      if (!confirm("Delete this event?")) return;
+      familyEvents.splice(idx, 1);
+      await saveFamilyEvents(familyEvents);
+      await loadFamilyEvents();
+      showNotification('Event deleted.');
+    };
 
-  familyEvents = data?.events || [];
-  renderCalendar();
-}
+    eventForm.onsubmit = async function(e) {
+      e.preventDefault();
+      const newEvent = {
+        title: eventTitle.value,
+        date: eventDate.value,
+        time: eventTime.value,
+        desc: eventDesc.value,
+        color: eventColor.value,
+        category: eventCategory.value,
+        private: eventPrivate.checked,
+        reminder: eventReminder.value,
+        location: eventLocation.value
+      };
+      if (editingEventIndex !== null) {
+        familyEvents[editingEventIndex] = newEvent;
+      } else {
+        familyEvents.push(newEvent);
+      }
+      await saveFamilyEvents(familyEvents);
+      await loadFamilyEvents();
+      eventModalBg.style.display = 'none';
+      showNotification('Event saved!');
+    };
 
-async function saveFamilyCalendar(events) {
-  if (!myFamilyId) return;
+    function showNotification(msg, duration = 3500) {
+      const notif = document.getElementById('notification');
+      notif.textContent = msg;
+      notif.style.display = 'block';
+      notif.style.opacity = '1';
+      notif.style.transform = 'translateY(0)';
+      notif.style.pointerEvents = 'auto';
+      setTimeout(() => {
+        notif.style.opacity = '0';
+        notif.style.transform = 'translateY(-30px)';
+        notif.style.pointerEvents = 'none';
+        setTimeout(() => { notif.style.display = 'none'; }, 400);
+      }, duration);
+    }
 
-  const { error } = await supabase
-    .from("calendars")
-    .upsert([{ family_id: myFamilyId, events }], { onConflict: ["family_id"] });
-
-  if (error) {
-    console.error("Supabase upsert error:", error);
-    showNotification("Failed to save event: " + error.message);
-  }
-}
-
-function renderCalendar() {
-  if (!calendarGrid) return;
-
-  calendarGrid.innerHTML = "";
-
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const lastDate = new Date(year, month + 1, 0).getDate();
-
-  for (let i = 0; i < firstDay; i++) {
-    const emptyCell = document.createElement("div");
-    calendarGrid.appendChild(emptyCell);
-  }
-
-  for (let date = 1; date <= lastDate; date++) {
-    const cell = document.createElement("div");
-    cell.className = "calendar-cell";
-    const fullDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
-    cell.dataset.date = fullDate;
-    cell.innerHTML = `<div>${date}</div>`;
-
-    const eventsToday = familyEvents.filter(e => e.date === fullDate);
-    eventsToday.forEach(e => {
-      const badge = document.createElement("div");
-      badge.className = "event-badge";
-      badge.innerText = e.title;
-      cell.appendChild(badge);
-    });
-
-    cell.onclick = () => openDayModal(fullDate);
-    calendarGrid.appendChild(cell);
-  }
-}
-
-function openDayModal(dateStr) {
-  selectedDateDisplay.innerText = `Events on ${dateStr}`;
-  const events = familyEvents.filter(e => e.date === dateStr);
-
-  const list = document.getElementById("eventList");
-  list.innerHTML = "";
-
-  events.forEach(e => {
-    const item = document.createElement("li");
-    item.innerHTML = `<strong>${e.title}</strong> @ ${e.time || "all day"} — ${e.desc || ""}`;
-    list.appendChild(item);
-  });
-
-  eventDate.value = dateStr;
-  dayModalBg.style.display = "block";
-}
-
-document.getElementById("closeDayModal").onclick = () => {
-  dayModalBg.style.display = "none";
-};
-
-document.getElementById("closeEventModal").onclick = () => {
-  eventModalBg.style.display = "none";
-};
-
-document.getElementById("addEventButton").onclick = () => {
-  dayModalBg.style.display = "none";
-  eventModalBg.style.display = "block";
-};
-
-eventForm.onsubmit = async function (e) {
-  e.preventDefault();
-
-  if (!eventTitle.value || !eventDate.value) {
-    showNotification("Please fill in the event title and date.");
-    return;
-  }
-
-  const newEvent = {
-    title: eventTitle.value.trim(),
-    date: eventDate.value,
-    time: eventTime.value,
-    desc: eventDesc.value,
-    owner: myOwnerName,
-  };
-
-  familyEvents.push(newEvent);
-  await saveFamilyCalendar(familyEvents);
-  await loadFamilyCalendar();
-
-  eventModalBg.style.display = "none";
-  showNotification("Event added and shared with your family!");
-};
-
-function showNotification(msg) {
-  if (!notification) return;
-  notification.innerText = msg;
-  notification.style.display = "block";
-  setTimeout(() => {
-    notification.style.display = "none";
-  }, 3000);
-}
-
-window.addEventListener("DOMContentLoaded", async () => {
-  await getProfileAndFamily();
-  await loadFamilyCalendar();
-});
-
+    // --- Initial Render ---
+    async function initialLoadAndSync() {
+      await getProfileAndFamily();
+      await loadFamilyEvents();
+      updateMonthYear();
+      renderCalendar(currentMonth, currentYear);
+    }
+    window.addEventListener('DOMContentLoaded', initialLoadAndSync);
   </script>
+  <footer style="text-align:center;color:#64748b;margin:2em 0 1em 0;">
+    Daylee – Organize your life, your way.
+  </footer>
 </body>
 </html>
