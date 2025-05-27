@@ -25,7 +25,7 @@
 <body>
   <a href="/dashboard" id="top-link">< Dashboard</a>
     <header>
-     <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
+     <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,0.2,1) 0s;">
      <br>
     <span class="logo">daylee</span>
     <div class="subtitle">Schedula - Your Schedule ChatBot</div>
@@ -91,7 +91,7 @@
       Object.keys(grouped).sort().forEach(date => {
         const d = new Date(date);
         const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
-        out += <b>${weekday} (${date}):</b><br>;
+        out += `<b>${weekday} (${date}):</b><br>`;
         out += grouped[date].map(e => "- " + (e.time || "All day") + ": " + e.title).join("<br>") + "<br>";
       });
       return out;
@@ -142,7 +142,7 @@
           desc: ''
         });
         saveEvents(events);
-        return Added "${parsed.title}"${parsed.time ? ' at ' + parsed.time : ''} on ${parsed.day} (${date}).;
+        return `Added "${parsed.title}"${parsed.time ? ' at ' + parsed.time : ''} on ${parsed.day} (${date}).`;
       }
       if (parsed.intent === 'query') {
         const date = getNextDateForWeekday(parsed.day);
@@ -162,7 +162,7 @@
     function appendMessage(sender, text) {
       const div = document.createElement('div');
       div.className = sender;
-      div.innerHTML = <strong>${sender === 'user' ? 'You' : 'AI'}:</strong> ${text};
+      div.innerHTML = `<strong>${sender === 'user' ? 'You' : 'AI'}:</strong> ${text}`;
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
     }
@@ -185,5 +185,3 @@
   </footer>
 </body>
 </html>
-
-
