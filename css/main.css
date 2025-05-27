@@ -1,0 +1,43 @@
+#top-link {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 1000;
+  background: linear-gradient(90deg, #2563eb, #06b6d4, #2563eb);
+  background-size: 200% auto;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  font-weight: bold;
+  padding: 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background-position 0.3s ease;
+}
+
+#top-link:hover {
+  animation: spin-gradient 2s linear infinite;
+  cursor: pointer;
+}
+
+/* Keyframes for the spinning gradient effect */
+@keyframes spin-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+body {
+    position: relative;
+    z-index: 1;
+}
+
+* {
+    position: relative;
+    z-index: 1;
+}
