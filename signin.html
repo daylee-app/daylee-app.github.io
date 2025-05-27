@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Daylee Login / Signup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Login or sign up for Daylee to organize your family calendar and location.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
+  <link href="/css/main.css" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; background: #e0f2fe; margin: 0; }
+    .container { max-width: 420px; margin: 48px auto; background: #fff; border-radius: 18px; box-shadow: 0 2px 16px #2563eb22; padding: 36px 28px 28px 28px; }
+    h1 { text-align: center; font-weight: 700; color: #2563eb; margin-bottom: 0.5em; }
+    .subtitle { text-align: center; color: #64748b; font-size: 1.05em; margin-bottom: 1.2em; }
+    .tab-btns { display: flex; justify-content: center; margin-bottom: 1.5em; }
+    .tab-btn { flex: 1; padding: 0.8em 0; border: none; background: #e0f2fe; color: #2563eb; font-weight: 700; font-size: 1.1em; border-radius: 8px 8px 0 0; cursor: pointer; transition: background 0.2s; }
+    .tab-btn.active { background: #2563eb; color: #fff; }
+    form { display: flex; flex-direction: column; gap: 1em; }
+    input, select { padding: 0.7em; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 1em; }
+    button[type="submit"] { background: linear-gradient(90deg,#2563eb 0%,#06b6d4 100%); color: #fff; border: none; border-radius: 8px; padding: 0.8em 0; font-size: 1.1em; font-weight: 700; cursor: pointer; margin-top: 0.5em; }
+    button[type="submit"]:hover { background: linear-gradient(90deg,#1e40af 0%,#0891b2 100%); }
+    .error, .success { text-align: center; margin-top: 1em; font-size: 1em; }
+    .error { color: #d32f2f; }
+    .success { color: #388e3c; }
+    .invite-info { background: #f1f5fd; color: #2563eb; border-radius: 8px; padding: 0.7em 1em; margin-bottom: 1em; text-align: center; }
+    .family-list { background: #f8fafc; border-radius: 8px; padding: 1em; margin-top: 1.5em; }
+    .family-list-title { color: #2563eb; font-weight: 700; margin-bottom: 0.5em; }
+    .member-row { margin-bottom: 0.5em; }
+    .logout-btn { background: #d32f2f; color: #fff; border: none; border-radius: 8px; padding: 0.5em 1.2em; font-weight: 700; cursor: pointer; margin-top: 1em; }
+    .logout-btn:hover { background: #b91c1c; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="container" id="authContainer">
+    <h1>Daylee</h1>
+    <div class="subtitle">Organize your family calendar & location</div>
+    <div class="tab-btns">
+      <button class="tab-btn active" id="loginTab">Login</button>
+      <button class="tab-btn" id="signupTab">Sign Up</button>
+    </div>
+    <form id="loginForm">
+      <input type="email" id="loginEmail" placeholder="Email" required>
+      <input type="password" id="loginPassword" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <div class="error" id="loginError"></div>
+    </form>
+    <form id="signupForm" style="display:none;">
+      <input type="text" id="signupName" placeholder="Your Name" required>
+      <input type="email" id="signupEmail" placeholder="Email" required>
+      <input type="password" id="signupPassword" placeholder="Password" required>
+      <select id="signupRole" required>
+        <option value="">Select Role</option>
+        <option value="organizer">Family Organizer</option>
+        <option value="member">Family Member</option>
+      </select>
+      <div id="inviteSection" style="display:none;">
+        <input type="text" id="inviteCode" placeholder="Family Invite Code">
+        <div class="invite-info">Ask your family organizer for the invite code.</div>
+      </div>
+      <button type="submit">Sign Up</button>
+      <div class="error" id="signupError"></div>
+      <div class="success" id="signupSuccess"></div>
+    </form>
+  </div>
+  <div class="container" id="familyContainer" style="display:none;">
+    <h1>Family Group</h1>
+    <div class="subtitle" id="familyName"></div>
+    <div class="family-list">
+      <div class="family-list-title">Members:</div>
+      <div id="familyMembers"></div>
+    </div>
+    <div class="family-list" id="familyCalendars"></div>
+    <div class="family-list" id="familyLocations"></div>
+    <button class="logout-btn" id="logoutBtn">Log Out</button>
+  </div>
+  <script>
+    // --- Supabase Setup ---
+    const SUPABASE_URL = "https://nmgikevqydvvjdgpdhjb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tZ2lrZXZxeWR2dmpkZ3BkaGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNzI4ODcsImV4cCI6MjA2Mzk0ODg4N30.1zPr-aOlkETD4FhuwhneHoXavSE6N0uNu-awxsidAZQ";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- UI Tabs ---
+    const loginTab = document.getElementById('loginTab');
+    const signupTab = document.getElementById('signupTab');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    const inviteSection = document.getElementById('inviteSection');
+    const signupRole = document.getElementById('signupRole');
+    loginTab.onclick = () => {
+      loginTab.classList.add('active');
+      signupTab.classList.remove('active');
+      loginForm.style.display = '';
+      signupForm.style.display = 'none';
+    };
+    signupTab.onclick = () => {
+      signupTab.classList.add('active');
+      loginTab.classList.remove('active');
+      loginForm.style.display = 'none';
+      signupForm.style.display = '';
+    };
+    signupRole.onchange = () => {
+      inviteSection.style.display = signupRole.value === 'member' ? '' : 'none';
+    };
+
+    // --- Auth Logic ---
+    async function handleLogin(e) {
+      e.preventDefault();
+      document.getElementById('loginError').textContent = '';
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        document.getElementById('loginError').textContent = error.message;
+      } else {
+        showFamilyUI();
+      }
+    }
+    loginForm.onsubmit = handleLogin;
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      document.getElementById('signupError').textContent = '';
+      document.getElementById('signupSuccess').textContent = '';
+      const name = document.getElementById('signupName').value;
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const role = document.getElementById('signupRole').value;
+      const inviteCode = document.getElementById('inviteCode').value;
+      if (!role) {
+        document.getElementById('signupError').textContent = "Please select your role.";
+        return;
+      }
+      // Sign up user
+      const { error, data } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        document.getElementById('signupError').textContent = error.message;
+        return;
+      }
+      // Create or join family
+      let family_id = null;
+      if (role === "organizer") {
+        // Organizer: create new family
+        const { data: fam, error: famErr } = await supabase
+          .from('families')
+          .insert([{ organizer_email: email, name: name + "'s Family", invite_code: Math.random().toString(36).substr(2,8) }])
+          .select().single();
+        if (famErr) {
+          document.getElementById('signupError').textContent = famErr.message;
+          return;
+        }
+        family_id = fam.id;
+      } else {
+        // Member: join with invite code
+        const { data: fam, error: famErr } = await supabase
+          .from('families')
+          .select('*').eq('invite_code', inviteCode).single();
+        if (famErr || !fam) {
+          document.getElementById('signupError').textContent = "Invalid invite code.";
+          return;
+        }
+        family_id = fam.id;
+      }
+      // Add user profile
+      const { error: profErr } = await supabase
+        .from('profiles')
+        .insert([{ email, name, family_id, role }]);
+      if (profErr) {
+        document.getElementById('signupError').textContent = profErr.message;
+        return;
+      }
+      document.getElementById('signupSuccess').textContent = "Signup successful! Please check your email to confirm your account, then log in.";
+    }
+    signupForm.onsubmit = handleSignup;
+
+    // --- Show Family UI ---
+    async function showFamilyUI() {
+      document.getElementById('authContainer').style.display = 'none';
+      document.getElementById('familyContainer').style.display = '';
+      // Get user profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        location.reload();
+        return;
+      }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+      if (!profile) {
+        document.getElementById('familyName').textContent = "No family found.";
+        return;
+      }
+      // Get family info
+      const { data: family } = await supabase
+        .from('families')
+        .select('*')
+        .eq('id', profile.family_id)
+        .single();
+      document.getElementById('familyName').textContent = family.name + (profile.role === 'organizer' ? ` (Invite code: ${family.invite_code})` : '');
+      // List members
+      const { data: members } = await supabase
+        .from('profiles')
+        .select('name,role,email')
+        .eq('family_id', profile.family_id);
+      document.getElementById('familyMembers').innerHTML = members.map(m =>
+        `<div class="member-row"><b>${m.name}</b> (${m.role})<br><span style="font-size:0.95em;color:#64748b;">${m.email}</span></div>`
+      ).join('');
+      // Show all calendars
+      const { data: calendars } = await supabase
+        .from('calendars')
+        .select('*')
+        .eq('family_id', profile.family_id);
+      document.getElementById('familyCalendars').innerHTML =
+        `<div class="family-list-title">Family Calendars:</div>` +
+        (calendars && calendars.length ? calendars.map(c =>
+          `<div style="margin-bottom:0.5em;"><b>${c.owner_name}:</b> ${c.events ? c.events.length : 0} events</div>`
+        ).join('') : '<div>No calendars yet.</div>');
+      // Show all locations
+      const { data: locations } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('family_id', profile.family_id);
+      document.getElementById('familyLocations').innerHTML =
+        `<div class="family-list-title">Family Locations:</div>` +
+        (locations && locations.length ? locations.map(l =>
+          `<div style="margin-bottom:0.5em;"><b>${l.owner_name}:</b> ${l.lat && l.lon ? `${l.lat.toFixed(4)}, ${l.lon.toFixed(4)}` : 'No location shared.'}</div>`
+        ).join('') : '<div>No locations shared yet.</div>');
+    }
+
+    // --- Log Out ---
+    document.getElementById('logoutBtn').onclick = async function() {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    // --- Auto-login if already authenticated ---
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) showFamilyUI();
+    });
+  </script>
+</body>
+</html>

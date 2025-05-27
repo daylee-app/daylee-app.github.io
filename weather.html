@@ -11,7 +11,7 @@
   <link href="/css/home.css" rel="stylesheet">
   <style>
     body { font-family: 'Inter', Arial, sans-serif; background: #e0f2fe; margin: 0; padding: 0; }
-    .container { max-width: 420px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 16px #2563eb22; padding: 32px 24px 24px 24px; }
+    .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 18px; box-shadow: 0 2px 16px #2563eb22; padding: 36px 24px 28px 24px; }
     h1 { text-align: center; font-weight: 700; color: #2563eb; margin-bottom: 0.5em; }
     #weather { margin-top: 20px; font-size: 1.08em; }
     .label { font-weight: 600; color: #2563eb; }
@@ -23,8 +23,18 @@
     .weather-title { font-size: 1.15em; font-weight: 600; color: #2563eb; margin-bottom: 0.2em; }
     .weather-detail { color: #22223b; }
     .subtitle { text-align: center; color: #64748b; font-size: 1.05em; margin-bottom: 1.2em; }
-    @media (max-width: 500px) {
-      .container { padding: 18px 4vw 18px 4vw; }
+    .weather-section { margin-bottom: 1.5em; border-bottom: 1px solid #e0e7ef; padding-bottom: 1em; }
+    .weather-section:last-child { border-bottom: none; }
+    .map-wrap { text-align: center; margin: 1.2em 0 1.5em 0; }
+    .map-frame { border: 2px solid #2563eb33; border-radius: 12px; width: 100%; max-width: 420px; height: 220px; }
+    .forecast-table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+    .forecast-table th, .forecast-table td { padding: 0.4em 0.6em; text-align: center; }
+    .forecast-table th { background: #e0f2fe; color: #2563eb; font-weight: 700; }
+    .forecast-table tr:nth-child(even) { background: #f8fafc; }
+    .forecast-table tr:nth-child(odd) { background: #f1f5f9; }
+    @media (max-width: 600px) {
+      .container { padding: 14px 2vw 14px 2vw; }
+      .map-frame { height: 160px; }
     }
     a#top-link { color: #2563eb; text-decoration: none; font-weight: 600; font-size: 1.1em; display: block; margin-bottom: 1.2em; }
     a#top-link:hover { text-decoration: underline; }
@@ -40,7 +50,7 @@
   </header>
   <div class="container">
     <h1>Weather</h1>
-    <div class="subtitle">Get the latest weather for your location</div>
+    <div class="subtitle">Get the latest weather, forecast, and map for your location</div>
     <div id="weather">
       <div style="text-align:center;color:#64748b;">Loading weather...</div>
     </div>
@@ -48,26 +58,21 @@
     <div class="error" id="error"></div>
   </div>
   <script>
-    // Uses Open-Meteo API (no key required)
+    let lastLat = null, lastLon = null;
+
     function fetchWeather(lat, lon) {
-      // Determine unit based on location (US, Bahamas, etc use Fahrenheit)
+      lastLat = lat; lastLon = lon;
       function prefersFahrenheit(lat, lon) {
-        // USA, Bahamas, Cayman, Liberia, Palau, Micronesia, Marshall Islands
-        // USA: lat 24-49, lon -125 to -66
         if (lat > 18 && lat < 50 && lon < -50 && lon > -130) return true;
-        // Bahamas
         if (lat > 20 && lat < 28 && lon > -80 && lon < -72) return true;
-        // Cayman
         if (lat > 18 && lat < 21 && lon > -82 && lon < -79) return true;
-        // Liberia
         if (lat > 4 && lat < 9 && lon > -12 && lon < -7) return true;
-        // Palau, Micronesia, Marshall Islands (skip for simplicity)
         return false;
       }
       const useF = prefersFahrenheit(lat, lon);
       const tempUnit = useF ? "fahrenheit" : "celsius";
       const windUnit = useF ? "mph" : "kmh";
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,apparent_temperature,precipitation,weathercode,cloudcover,windspeed_10m,winddirection_10m,relativehumidity_2m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,weathercode&temperature_unit=${tempUnit}&windspeed_unit=${windUnit}&precipitation_unit=mm&timezone=auto`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,apparent_temperature,precipitation,weathercode,cloudcover,windspeed_10m,winddirection_10m,relativehumidity_2m,dewpoint_2m,visibility,uv_index,pressure_msl&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,weathercode,uv_index_max,windgusts_10m_max&temperature_unit=${tempUnit}&windspeed_unit=${windUnit}&precipitation_unit=mm&timezone=auto`;
       fetch(url)
         .then(res => res.json())
         .then(data => {
@@ -75,13 +80,12 @@
             showError("Weather data not available for your location.");
             return;
           }
-          showWeather(data, useF);
+          showWeather(data, useF, lat, lon);
         })
         .catch(() => showError("Could not fetch weather data."));
     }
 
     function getWeatherIcon(code) {
-      // Simple emoji icons for weather codes
       if ([0, 1].includes(code)) return "☀️";
       if ([2].includes(code)) return "🌤️";
       if ([3].includes(code)) return "☁️";
@@ -92,7 +96,7 @@
       return "🌡️";
     }
 
-    function showWeather(data, useF) {
+    function showWeather(data, useF, lat, lon) {
       const w = data.current_weather;
       const daily = data.daily;
       const weatherDiv = document.getElementById('weather');
@@ -106,22 +110,76 @@
       };
       const tempUnit = useF ? "°F" : "°C";
       const windUnit = useF ? "mph" : "km/h";
-      weatherDiv.innerHTML = `
-        <div class="weather-icon">${getWeatherIcon(w.weathercode)}</div>
-        <div class="weather-row weather-title">${weatherCodes[w.weathercode] || "Unknown"}</div>
-        <div class="weather-row weather-detail"><span class="label">Temperature:</span> ${w.temperature}${tempUnit} (feels like ${data.hourly.apparent_temperature[0]}${tempUnit})</div>
-        <div class="weather-row weather-detail"><span class="label">Humidity:</span> ${data.hourly.relativehumidity_2m[0]}%</div>
-        <div class="weather-row weather-detail"><span class="label">Wind:</span> ${w.windspeed} ${windUnit} (${w.winddirection}°)</div>
-        <div class="weather-row weather-detail"><span class="label">Cloud Cover:</span> ${data.hourly.cloudcover[0]}%</div>
-        <div class="weather-row weather-detail"><span class="label">Precipitation:</span> ${data.hourly.precipitation[0]} mm</div>
-        <div class="weather-row weather-detail"><span class="label">Sunrise:</span> ${daily.sunrise[0].slice(11,16)}</div>
-        <div class="weather-row weather-detail"><span class="label">Sunset:</span> ${daily.sunset[0].slice(11,16)}</div>
-        <div class="weather-row weather-detail"><span class="label">Today's High:</span> ${daily.temperature_2m_max[0]}${tempUnit}</div>
-        <div class="weather-row weather-detail"><span class="label">Today's Low:</span> ${daily.temperature_2m_min[0]}${tempUnit}</div>
-        <div class="weather-row weather-detail"><span class="label">Today's Precipitation:</span> ${daily.precipitation_sum[0]} mm</div>
-      `;
-      document.getElementById('refresh-btn').style.display = 'inline-block';
-      document.getElementById('error').textContent = '';
+      // Find current hour index
+      const now = new Date();
+      const hourIdx = data.hourly.time.findIndex(t => t.slice(0,13) === now.toISOString().slice(0,13));
+      // Map
+      const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.06},${lat-0.04},${lon+0.06},${lat+0.04}&layer=mapnik&marker=${lat},${lon}`;
+      // Address (reverse geocode)
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+        .then(r=>r.json())
+        .then(addrData => {
+          const address = addrData.display_name || `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+          weatherDiv.innerHTML = `
+            <div class="weather-section">
+              <div class="weather-icon">${getWeatherIcon(w.weathercode)}</div>
+              <div class="weather-title">${weatherCodes[w.weathercode] || "Unknown"}</div>
+              <div class="weather-row weather-detail"><span class="label">Location:</span> ${address}</div>
+              <div class="weather-row weather-detail"><span class="label">Coordinates:</span> ${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
+              <div class="weather-row weather-detail"><span class="label">Time:</span> ${now.toLocaleString()}</div>
+            </div>
+            <div class="map-wrap">
+              <iframe class="map-frame" src="${mapUrl}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+            <div class="weather-section">
+              <div class="weather-row weather-detail"><span class="label">Temperature:</span> ${w.temperature}${tempUnit} (feels like ${data.hourly.apparent_temperature[hourIdx]}${tempUnit})</div>
+              <div class="weather-row weather-detail"><span class="label">Humidity:</span> ${data.hourly.relativehumidity_2m[hourIdx]}%</div>
+              <div class="weather-row weather-detail"><span class="label">Dew Point:</span> ${data.hourly.dewpoint_2m[hourIdx]}${tempUnit}</div>
+              <div class="weather-row weather-detail"><span class="label">Wind:</span> ${w.windspeed} ${windUnit} (${w.winddirection}°)</div>
+              <div class="weather-row weather-detail"><span class="label">Wind Gusts:</span> ${daily.windgusts_10m_max[0]} ${windUnit}</div>
+              <div class="weather-row weather-detail"><span class="label">Cloud Cover:</span> ${data.hourly.cloudcover[hourIdx]}%</div>
+              <div class="weather-row weather-detail"><span class="label">Visibility:</span> ${data.hourly.visibility[hourIdx] ? (data.hourly.visibility[hourIdx]/1000).toFixed(1) + " km" : "N/A"}</div>
+              <div class="weather-row weather-detail"><span class="label">Pressure:</span> ${data.hourly.pressure_msl[hourIdx]} hPa</div>
+              <div class="weather-row weather-detail"><span class="label">Precipitation:</span> ${data.hourly.precipitation[hourIdx]} mm</div>
+              <div class="weather-row weather-detail"><span class="label">UV Index:</span> ${data.hourly.uv_index[hourIdx] || daily.uv_index_max[0] || "N/A"}</div>
+              <div class="weather-row weather-detail"><span class="label">Sunrise:</span> ${daily.sunrise[0].slice(11,16)}</div>
+              <div class="weather-row weather-detail"><span class="label">Sunset:</span> ${daily.sunset[0].slice(11,16)}</div>
+              <div class="weather-row weather-detail"><span class="label">Today's High:</span> ${daily.temperature_2m_max[0]}${tempUnit}</div>
+              <div class="weather-row weather-detail"><span class="label">Today's Low:</span> ${daily.temperature_2m_min[0]}${tempUnit}</div>
+              <div class="weather-row weather-detail"><span class="label">Today's Precipitation:</span> ${daily.precipitation_sum[0]} mm</div>
+            </div>
+            <div class="weather-section">
+              <div class="weather-title" style="margin-bottom:0.5em;">5-Day Forecast</div>
+              <table class="forecast-table">
+                <tr>
+                  <th>Date</th>
+                  <th>Weather</th>
+                  <th>High</th>
+                  <th>Low</th>
+                  <th>Precip</th>
+                  <th>UV Max</th>
+                  <th>Wind Gust</th>
+                </tr>
+                ${daily.time.slice(0,5).map((date,i) => `
+                  <tr>
+                    <td>${new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
+                    <td>${getWeatherIcon(daily.weathercode[i])} ${weatherCodes[daily.weathercode[i]] || ""}</td>
+                    <td>${daily.temperature_2m_max[i]}${tempUnit}</td>
+                    <td>${daily.temperature_2m_min[i]}${tempUnit}</td>
+                    <td>${daily.precipitation_sum[i]} mm</td>
+                    <td>${daily.uv_index_max ? daily.uv_index_max[i] : "N/A"}</td>
+                    <td>${daily.windgusts_10m_max ? daily.windgusts_10m_max[i] + " " + windUnit : "N/A"}</td>
+                  </tr>
+                `).join("")}
+              </table>
+            </div>
+          `;
+          document.getElementById('refresh-btn').style.display = 'inline-block';
+          document.getElementById('error').textContent = '';
+        })
+        .catch(() => {
+          weatherDiv.innerHTML = `<div class="weather-row weather-detail"><span class="label">Coordinates:</span> ${lat.toFixed(4)}, ${lon.toFixed(4)}</div>`;
+        });
     }
 
     function showError(msg) {
