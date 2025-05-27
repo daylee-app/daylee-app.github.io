@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daylee Setup</title>
+  <meta name="description" content="Set up your Daylee calendar app in just a few steps.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <link href="/css/setup.css" rel="stylesheet">
+  <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
+</head>
+<body>
+    <!-- Page loader -->
+     <div class="loader">
+  <div class="box box-1">
+    <div class="side-left"></div>
+    <div class="side-right"></div>
+    <div class="side-top"></div>
+  </div>
+  <div class="box box-2">
+    <div class="side-left"></div>
+    <div class="side-right"></div>
+    <div class="side-top"></div>
+  </div>
+  <div class="box box-3">
+    <div class="side-left"></div>
+    <div class="side-right"></div>
+    <div class="side-top"></div>
+  </div>
+  <div class="box box-4">
+    <div class="side-left"></div>
+    <div class="side-right"></div>
+    <div class="side-top"></div>
+  </div>
+</div>
+
+  <div class="setup-container">
+    <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="setup-logo">
+    <div class="setup-title">Welcome to Daylee</div>
+    <div class="setup-desc">Let's get your calendar set up!</div>
+    <form class="setup-form">
+      <!-- Example fields, replace or expand as needed -->
+      <input type="text" placeholder="Your Name" required>
+      <input type="email" placeholder="Email Address" required>
+      <select>
+        <option value="">Select Timezone</option>
+        <option value="EST">Eastern Time (EST)</option>
+        <option value="CST">Central Time (CST)</option>
+        <option value="PST">Pacific Time (PST)</option>
+        <!-- Add more as needed -->
+      </select>
+      <button type="submit" class="setup-btn">Continue</button>
+          <script>
+      // Hide everything except loader for 3 seconds, then swap
+      window.addEventListener('DOMContentLoaded', function() {
+        const loader = document.querySelector('.loader');
+        const setup = document.querySelector('.setup-container');
+        setup.style.display = 'none';
+        loader.style.display = 'block';
+        setTimeout(() => {
+          loader.style.display = 'none';
+          setup.style.display = 'flex';
+        }, 5000);
+      });
+    </script>
+    </form>
+  </div>
+</body>
+</html>
