@@ -28,27 +28,24 @@
      <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,0.2,1) 0s;">
      <br>
     <span class="logo">daylee</span>
-    <div class="subtitle">Schedula - Your Schedule ChatBot</div>
+    <div class="subtitle">Schedula - Your Schedule Assistant</div>
   </header>
   <div class="container">
     <h1>AI Calendar Assistant</h1>
     <div id="chat"></div>
     <form id="input-area">
-      <input type="text" id="user-input" placeholder="Ask about your calendar..." autocomplete="off" required />
+      <input type="text" id="user-input" placeholder="Ask about your calendar, weather, or location..." autocomplete="off" required />
       <button type="submit" id="send-btn">Send</button>
     </form>
   </div>
   <script>
-    // --- Calendar Storage Logic ---
-    // Events are stored as { date: 'YYYY-MM-DD', time: 'HH:MM', title, desc }
+    // --- Calendar Logic ---
     function loadEvents() {
       return JSON.parse(localStorage.getItem('dayleeEvents') || '[]');
     }
     function saveEvents(events) {
       localStorage.setItem('dayleeEvents', JSON.stringify(events));
     }
-
-    // Helper: get next date for a weekday name (e.g. "monday")
     function getNextDateForWeekday(weekday) {
       const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
       const today = new Date();
@@ -56,32 +53,19 @@
       const targetIdx = days.indexOf(weekday.toLowerCase());
       let diff = targetIdx - todayIdx;
       if (diff < 0) diff += 7;
-      if (diff === 0) diff = 7; // always next week if today
+      if (diff === 0) diff = 7;
       const result = new Date(today);
       result.setDate(today.getDate() + diff);
       return result.toISOString().slice(0,10);
     }
-
-    // Helper: get all events for a weekday name
-    function getEventsForWeekday(weekday) {
-      const events = loadEvents();
-      // Find all events for the next occurrence of this weekday
-      const date = getNextDateForWeekday(weekday);
-      return events.filter(e => e.date === date);
-    }
-
-    // Helper: format events for a day
     function formatEventsForDate(date, weekday) {
       const events = loadEvents().filter(e => e.date === date);
       if (!events.length) return "No events scheduled for " + weekday + ".";
       return "Events for " + weekday + ":<br>" + events.map(e => "- " + (e.time || "All day") + ": " + e.title).join("<br>");
     }
-
-    // Helper: format all events
     function formatAllEvents() {
       const events = loadEvents();
       if (!events.length) return "No events scheduled.";
-      // Group by date
       const grouped = {};
       events.forEach(e => {
         if (!grouped[e.date]) grouped[e.date] = [];
@@ -97,10 +81,85 @@
       return out;
     }
 
-    // Parse user input for intent and details
+    // --- Weather Logic ---
+    async function getWeatherString() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          resolve("Geolocation is not supported by your browser.");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            // Use Open-Meteo API (no key required)
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,apparent_temperature,precipitation,weathercode,cloudcover,windspeed_10m,winddirection_10m,relativehumidity_2m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,weathercode&temperature_unit=auto&windspeed_unit=auto&precipitation_unit=mm&timezone=auto`)
+              .then(res => res.json())
+              .then(data => {
+                if (!data.current_weather) {
+                  resolve("Weather data not available for your location.");
+                  return;
+                }
+                const w = data.current_weather;
+                const daily = data.daily;
+                const weatherCodes = {
+                  0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+                  45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle", 53: "Drizzle", 55: "Dense drizzle",
+                  56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Slight rain", 63: "Rain", 65: "Heavy rain",
+                  66: "Freezing rain", 67: "Freezing rain", 71: "Slight snow", 73: "Snow", 75: "Heavy snow",
+                  77: "Snow grains", 80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
+                  85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm hail", 99: "Thunderstorm hail"
+                };
+                const tempUnit = w.temperature_unit || "°C";
+                const windUnit = w.windspeed_unit || "km/h";
+                resolve(
+                  `Current weather: <b>${weatherCodes[w.weathercode] || "Unknown"}</b><br>
+                  Temperature: ${w.temperature}°C<br>
+                  Wind: ${w.windspeed} km/h<br>
+                  Cloud Cover: ${data.hourly.cloudcover[0]}%<br>
+                  Humidity: ${data.hourly.relativehumidity_2m[0]}%<br>
+                  Today's High: ${daily.temperature_2m_max[0]}°C, Low: ${daily.temperature_2m_min[0]}°C`
+                );
+              })
+              .catch(() => resolve("Could not fetch weather data."));
+          },
+          () => resolve("Could not get your location for weather. Please allow location access.")
+        );
+      });
+    }
+
+    // --- Location Logic ---
+    async function getLocationString() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          resolve("Geolocation is not supported by your browser.");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            // Use Nominatim reverse geocoding
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.display_name) {
+                  resolve(`Your current location: <b>${data.display_name}</b>`);
+                } else {
+                  resolve(`Your coordinates: ${lat.toFixed(5)}, ${lon.toFixed(5)}`);
+                }
+              })
+              .catch(() => resolve(`Your coordinates: ${lat.toFixed(5)}, ${lon.toFixed(5)}`));
+          },
+          () => resolve("Could not get your location. Please allow location access.")
+        );
+      });
+    }
+
+    // --- Input Parsing ---
     function parseInput(input) {
       input = input.toLowerCase();
-      // Add event: "add a dentist appointment at 3:00 on monday"
+      // Calendar add
       let addMatch = input.match(/add (?:an?|the)?\s*(.*?)\s*(?:appointment|event)?\s*(?:at|@)?\s*([0-9:apm ]+)?\s*(?:on)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/);
       if (addMatch) {
         return {
@@ -110,8 +169,7 @@
           day: addMatch[3]
         };
       }
-      // Query: handle many ways to ask about a day
-      // Examples: "can i hang out with friends on tuesday", "do i have anything on friday", "what's on monday", "am i free thursday", "is there anything on saturday"
+      // Calendar query
       let queryMatch = input.match(
         /(can i|do i|am i|is there|what's|what is|show|list|anything|free|available|busy|plans?|scheduled?|events?).*?(on|for)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/
       );
@@ -125,14 +183,21 @@
       if (input.match(/all events|everything|full calendar|show calendar|list all|what's my week|what's my schedule/)) {
         return { intent: 'list' };
       }
+      // Weather
+      if (input.match(/weather|temperature|forecast|rain|sunny|cloudy|wind|humidity/)) {
+        return { intent: 'weather' };
+      }
+      // Location
+      if (input.match(/where am i|my location|current location|where are we|what is my address|what's my address|where is this/)) {
+        return { intent: 'location' };
+      }
       return { intent: 'unknown' };
     }
 
-    // AI response logic
-    function aiRespond(input) {
+    // --- AI Response Logic ---
+    async function aiRespond(input) {
       const parsed = parseInput(input);
       if (parsed.intent === 'add') {
-        // Add event to next occurrence of the weekday
         const date = getNextDateForWeekday(parsed.day);
         const events = loadEvents();
         events.push({
@@ -151,10 +216,16 @@
       if (parsed.intent === 'list') {
         return formatAllEvents();
       }
-      return "Sorry, I didn't understand. Try asking to add or check events, e.g. 'Add a dentist appointment at 3:00 on Monday' or 'Can I hang out with friends on Tuesday?'.";
+      if (parsed.intent === 'weather') {
+        return await getWeatherString();
+      }
+      if (parsed.intent === 'location') {
+        return await getLocationString();
+      }
+      return "I'm here to help you manage your schedule and answer questions about your events, weather, or location. It looks like your request doesn't relate to those topics—try asking something like 'What's on my calendar?' or 'Will it rain tomorrow?'";
     }
 
-    // UI logic
+    // --- UI Logic ---
     const chat = document.getElementById('chat');
     const form = document.getElementById('input-area');
     const userInput = document.getElementById('user-input');
@@ -167,18 +238,19 @@
       chat.scrollTop = chat.scrollHeight;
     }
 
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', async function(e) {
       e.preventDefault();
       const input = userInput.value.trim();
       if (!input) return;
       appendMessage('user', input);
-      const response = aiRespond(input);
-      appendMessage('ai', response);
+      appendMessage('ai', '<em>Thinking…</em>');
+      const response = await aiRespond(input);
+      chat.lastChild.innerHTML = `<strong>AI:</strong> ${response}`;
       userInput.value = '';
     });
 
     // Greet on load
-    appendMessage('ai', "Hi! Ask me about your calendar. For example: - Add a dentist appointment at 3:00 on Monday<br>- Can I hang out with friends on Tuesday?");
+    appendMessage('ai', "Hi! Ask me about your calendar, weather, or location. For example:<br>- Add a dentist appointment at 3:00 on Monday<br>- What's the weather?<br>- Where am I?");
   </script>
     <footer>
     Daylee -  Organize your life, your way.
