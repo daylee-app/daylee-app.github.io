@@ -2,477 +2,405 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>Daylee Calendar AI Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Daylee Scedula</title>
-  <meta name="description" content="Your Daylee calendar – see your events, weather, and more.">
+  <meta name="description" content="Ask anything about your Daylee calendar.">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
   <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
-  <link href="/css/home.css" rel="stylesheet">
   <link href="/css/main.css" rel="stylesheet">
+  <link href="/css/home.css" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
-    .container { max-width: 500px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 24px; }
-    h1 { text-align: center; }
-    #chat { height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 12px; background: #fafafa; margin-bottom: 16px; }
-    .user { color: #1976d2; margin-bottom: 8px; }
-    .ai { color: #388e3c; margin-bottom: 8px; }
-    #input-area { display: flex; gap: 8px; }
-    #user-input { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
-    #send-btn { padding: 8px 16px; border: none; border-radius: 4px; background: #1976d2; color: #fff; cursor: pointer; }
-    #send-btn:hover { background: #1565c0; }
-    .directions-link { word-break: break-all; }
+    body { font-family: 'Inter', Arial, sans-serif; background: #f1f5fd; margin: 0; }
+    .ai-container { max-width: 600px; margin: 3em auto; background: #fff; border-radius: 18px; box-shadow: 0 2px 16px #2563eb22; padding: 2em; }
+    .ai-title { font-size: 2em; font-weight: 700; color: #2563eb; text-align: center; }
+    .ai-subtitle { color: #64748b; margin-bottom: 1.5em; text-align: center; }
+    .ai-chat { min-height: 200px; max-height: 400px; overflow-y: auto; margin-bottom: 1em; background: #f8fafc; border-radius: 12px; padding: 1em; }
+    .ai-message { margin-bottom: 1em; }
+    .ai-message.user { text-align: right; }
+    .ai-message.ai { text-align: left; color: #2563eb; }
+    .ai-input-row { display: flex; gap: 0.5em; }
+    .ai-input { flex: 1; padding: 0.7em; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 1em; }
+    .ai-send-btn { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 0.7em 1.5em; font-weight: 700; cursor: pointer; }
+    .ai-send-btn:hover { background: #1e40af; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <a href="/dashboard" id="top-link">< Dashboard</a>
-    <header>
-     <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,0.2,1) 0s;">
-     <br>
-    <span class="logo">daylee</span>
-    <div class="subtitle">Schedula - Your Schedule Assistant</div>
+  <a href="/dashboard" id="top-link" style="color:#2563eb;text-decoration:none;font-weight:600;font-size:1.1em;display:block;margin:1.5em 0 0 2em;">&lt; Dashboard</a>
+  <header>
+    <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="logo" />
+    <br>
+    <span class="calendar-title">Schedula AI</span>
+    <div class="calendar-subtitle">A powerful ai that tells you about your schedule</div>
   </header>
-  <div class="container">
-    <h1>AI Calendar Assistant</h1>
-    <div id="chat"></div>
-    <form id="input-area">
-      <input type="text" id="user-input" placeholder="Ask about your calendar, weather, location, or directions..." autocomplete="off" required />
-      <button type="submit" id="send-btn">Send</button>
+  <div class="ai-container">
+    <div class="ai-title">Daylee Calendar AI</div>
+    <div class="ai-subtitle">Ask anything about your calendar. You can view, add, edit, or delete events using natural language!</div>
+    <div class="ai-chat" id="aiChat"></div>
+    <form id="aiForm" class="ai-input-row" autocomplete="off">
+      <input type="text" id="aiInput" class="ai-input" placeholder="Ask about your calendar..." required autocomplete="off">
+      <button type="submit" class="ai-send-btn">Send</button>
     </form>
   </div>
   <script>
-    // Get user info
-    const user = JSON.parse(localStorage.getItem('dayleeUser') || '{}');
+    // --- Supabase Setup ---
+    const SUPABASE_URL = "https://qfgmcnbqhhelrdxvdrdb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZ21jbmJxaGhlbHJkeHZkcmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMTY2OTgsImV4cCI6MjA2MzY5MjY5OH0.OZhA0jmUmGcQ5ZJs3gxy99blGsz7YyRJyBfiHDDAWIc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- Calendar Logic ---
-    function loadEvents() {
-      return JSON.parse(localStorage.getItem('dayleeEvents') || '[]');
-    }
-    function saveEvents(events) {
-      localStorage.setItem('dayleeEvents', JSON.stringify(events));
-    }
-    function getNextDateForWeekday(weekday) {
-      const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-      const today = new Date();
-      const todayIdx = today.getDay();
-      const targetIdx = days.indexOf(weekday.toLowerCase());
-      let diff = targetIdx - todayIdx;
-      if (diff < 0) diff += 7;
-      if (diff === 0) diff = 7;
-      const result = new Date(today);
-      result.setDate(today.getDate() + diff);
-      return result.toISOString().slice(0,10);
-    }
-    function formatEventsForDate(date, weekday) {
-      const events = loadEvents().filter(e => e.date === date);
-      if (!events.length) return "No events scheduled for " + weekday + ".";
-      return "Events for " + weekday + ":<br>" + events.map(e => "- " + (e.time || "All day") + ": " + e.title).join("<br>");
-    }
-    function formatAllEvents() {
-      const events = loadEvents();
-      if (!events.length) return "No events scheduled.";
-      const grouped = {};
-      events.forEach(e => {
-        if (!grouped[e.date]) grouped[e.date] = [];
-        grouped[e.date].push(e);
-      });
-      let out = "";
-      Object.keys(grouped).sort().forEach(date => {
-        const d = new Date(date);
-        const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
-        out += `<b>${weekday} (${date}):</b><br>`;
-        out += grouped[date].map(e => "- " + (e.time || "All day") + ": " + e.title).join("<br>") + "<br>";
-      });
-      return out;
+    let userProfile = null, familyId = null, familyEvents = [];
+
+    // --- Load Profile & Events ---
+    async function loadProfileAndEvents() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/signin.html"; return; }
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (!profile) { alert("No profile found."); return; }
+      userProfile = profile;
+      familyId = profile.family_id;
+      const { data: cal } = await supabase.from('calendars').select('*').eq('family_id', familyId).maybeSingle();
+      familyEvents = (cal && cal.events) ? (Array.isArray(cal.events) ? cal.events : JSON.parse(cal.events)) : [];
     }
 
-    // --- Weather Logic ---
-    async function getWeatherString() {
-      if (user && user.location) {
-        const geo = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(user.location)}&limit=1`).then(r=>r.json());
-        if (geo && geo[0]) {
-          const lat = geo[0].lat, lon = geo[0].lon;
-          return fetchWeather(lat, lon);
-        }
-      }
-      return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-          resolve("Geolocation is not supported by your browser.");
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          pos => fetchWeather(pos.coords.latitude, pos.coords.longitude).then(resolve),
-          () => resolve("Could not get your location for weather. Please allow location access.")
-        );
-      });
-      function fetchWeather(lat, lon) {
-        return fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,apparent_temperature,precipitation,weathercode,cloudcover,windspeed_10m,winddirection_10m,relativehumidity_2m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,weathercode&temperature_unit=auto&windspeed_unit=auto&precipitation_unit=mm&timezone=auto`)
-          .then(res => res.json())
-          .then(data => {
-            if (!data.current_weather) {
-              return "Weather data not available for your location.";
-            }
-            const w = data.current_weather;
-            const daily = data.daily;
-            const weatherCodes = {
-              0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-              45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle", 53: "Drizzle", 55: "Dense drizzle",
-              56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Slight rain", 63: "Rain", 65: "Heavy rain",
-              66: "Freezing rain", 67: "Freezing rain", 71: "Slight snow", 73: "Snow", 75: "Heavy snow",
-              77: "Snow grains", 80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
-              85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm hail", 99: "Thunderstorm hail"
-            };
-            return `Current weather: <b>${weatherCodes[w.weathercode] || "Unknown"}</b><br>
-              Temperature: ${w.temperature}°C<br>
-              Wind: ${w.windspeed} km/h<br>
-              Cloud Cover: ${data.hourly.cloudcover[0]}%<br>
-              Humidity: ${data.hourly.relativehumidity_2m[0]}%<br>
-              Today's High: ${daily.temperature_2m_max[0]}°C, Low: ${daily.temperature_2m_min[0]}°C`;
-          })
-          .catch(() => "Could not fetch weather data.");
-      }
+    // --- AI Chat Logic ---
+    const aiChat = document.getElementById('aiChat');
+    const aiForm = document.getElementById('aiForm');
+    const aiInput = document.getElementById('aiInput');
+
+    function appendMessage(text, sender = "ai") {
+      const msg = document.createElement('div');
+      msg.className = 'ai-message ' + sender;
+      msg.textContent = text;
+      aiChat.appendChild(msg);
+      aiChat.scrollTop = aiChat.scrollHeight;
     }
 
-    // --- Location Logic ---
-    async function getLocationString() {
-      if (user && user.location) {
-        const geo = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(user.location)}&limit=1`).then(r=>r.json());
-        if (geo && geo[0] && geo[0].display_name) {
-          return `Your default location: <b>${geo[0].display_name}</b>`;
-        }
-      }
-      return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-          resolve("Geolocation is not supported by your browser.");
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
-              .then(res => res.json())
-              .then(data => {
-                if (data && data.display_name) {
-                  resolve(`Your current location: <b>${data.display_name}</b>`);
-                } else {
-                  resolve(`Your coordinates: ${lat.toFixed(5)}, ${lon.toFixed(5)}`);
-                }
-              })
-              .catch(() => resolve(`Your coordinates: ${lat.toFixed(5)}, ${lon.toFixed(5)}`));
-          },
-          () => resolve("Could not get your location. Please allow location access.")
-        );
-      });
+    // --- Smarter Synonym and Phrase Normalization ---
+    function normalizeInput(input) {
+      return input.trim().toLowerCase();
     }
 
-    // --- Directions Logic ---
-    async function getDirectionsString(query) {
-      async function getLatLon() {
-        if (user && user.location) {
-          const geo = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(user.location)}&limit=1`).then(r=>r.json());
-          if (geo && geo[0]) return {lat: geo[0].lat, lon: geo[0].lon};
-        }
-        return new Promise((resolve, reject) => {
-          if (!navigator.geolocation) return reject();
-          navigator.geolocation.getCurrentPosition(
-            pos => resolve({lat: pos.coords.latitude, lon: pos.coords.longitude}),
-            () => reject()
-          );
-        });
-      }
-      try {
-        const {lat, lon} = await getLatLon();
-        if (/\d+|,/.test(query)) {
-          const url = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${encodeURIComponent(query)}`;
-          return `Directions: <a class="directions-link" href="${url}" target="_blank">${query}</a>`;
-        }
-        const results = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&viewbox=${lon-0.1},${lat+0.1},${lon+0.1},${lat-0.1}&bounded=1`).then(r=>r.json());
-        if (results && results.length > 0) {
-          const place = results[0];
-          const url = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}`;
-          return `Directions to nearest <b>${query}</b>: <a class="directions-link" href="${url}" target="_blank">${place.display_name}</a>`;
-        } else {
-          return "Sorry, I couldn't find that place nearby.";
-        }
-      } catch {
-        return "Could not get your location for directions. Please allow location access or set a default location in setup.";
-      }
-    }
+    // --- Natural Language Parser for Calendar ---
+    function parseCommand(input) {
+      const text = normalizeInput(input);
 
-    // --- Activity Suggestion State ---
-    let lastSuggestedActivity = null;
-
-    // --- Input Parsing ---
-    function parseInput(input) {
-      input = input.toLowerCase().trim();
-
-      // Smarter: handle more flexible add, delete, and query
-      if (/^(add|schedule|create)\b/.test(input)) {
-        // Try to extract title, time, day
-        let match = input.match(/(?:add|schedule|create) (.+?)(?: at ([0-9:apm ]+))?(?: on )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)?/);
-        if (match) {
-          return {
-            intent: 'add',
-            title: match[1] ? match[1].trim() : 'Event',
-            time: match[2] ? match[2].trim() : '',
-            day: match[3]
-          };
-        }
+      // Calculator: try to detect math expressions
+      if (/^[\d\.\+\-\*\/\(\) ]+$/.test(input.trim())) {
+        return { action: "calculate", expr: input.trim() };
       }
-
-      if (/^(delete|remove|cancel)\b/.test(input)) {
-        let match = input.match(/(?:delete|remove|cancel) (.+?)(?: at ([0-9:apm ]+))?(?: on )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)?/);
-        if (match) {
-          return {
-            intent: 'delete',
-            title: match[1] ? match[1].trim() : null,
-            time: match[2] ? match[2].trim() : null,
-            day: match[3]
-          };
-        }
-      }
-
-      // "Can I do X at TIME on DAY" or "Am I free at TIME on DAY"
-      let canDoMatch = input.match(/(?:can i|am i able to|is it possible to|am i free to|could i|would i be able to) (.+?) (?:at\s*([0-9:apm ]+))?\s*(?:on)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/);
-      if (canDoMatch) {
-        return {
-          intent: 'can_do',
-          activity: canDoMatch[1].trim(),
-          time: canDoMatch[2] ? canDoMatch[2].trim() : '',
-          day: canDoMatch[3]
-        };
-      }
-
-      // "When can I do X on DAY" or "When can I do X on DAY between TIME1 and TIME2"
-      let whenCanDoMatch = input.match(/when can i (.+?) on (monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?: (?:between|inbetween) ([0-9:apm ]+) and ([0-9:apm ]+))?/);
-      if (whenCanDoMatch) {
-        return {
-          intent: 'when_can_do',
-          activity: whenCanDoMatch[1].trim(),
-          day: whenCanDoMatch[2],
-          start: whenCanDoMatch[3] ? whenCanDoMatch[3].trim() : null,
-          end: whenCanDoMatch[4] ? whenCanDoMatch[4].trim() : null
-        };
-      }
-
-      // "Add that to my calendar"
-      if (input.match(/add that to (my )?calendar/)) {
-        return { intent: 'add_last_suggestion' };
-      }
-
-      // List all events
-      if (input.match(/all events|everything|full calendar|show calendar|list all|what's my week|what's my schedule|show my week|show my schedule/)) {
-        return { intent: 'list' };
-      }
-
-      // Weather
-      if (input.match(/weather|temperature|forecast|rain|sunny|cloudy|wind|humidity/)) {
-        return { intent: 'weather' };
-      }
-      // Location
-      if (input.match(/where am i|my location|current location|where are we|what is my address|what's my address|where is this/)) {
-        return { intent: 'location' };
-      }
-      // Directions (address or place/company)
-      if (input.match(/(directions|how do i get to|navigate|route|way to|get to|take me to|go to|drive to|walk to|show me the way to|find directions to)\s+(.+)/)) {
-        const match = input.match(/(directions|how do i get to|navigate|route|way to|get to|take me to|go to|drive to|walk to|show me the way to|find directions to)\s+(.+)/);
-        return { intent: 'directions', query: match[2].trim() };
-      }
-
-      // General queries: "What am I doing on Friday", "What's planned for Monday"
-      let queryMatch = input.match(
-        /(can i|do i|am i|is there|what's|what is|show|list|anything|free|available|busy|plans?|scheduled?|events?).*?(on|for)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/
-      );
-      if (queryMatch) {
-        return {
-          intent: 'query',
-          day: queryMatch[3]
-        };
-      }
-
-      // Fallback
-      return { intent: 'unknown' };
-    }
-
-    // --- AI Response Logic ---
-    async function aiRespond(input) {
-      const parsed = parseInput(input);
 
       // Add event
-      if (parsed.intent === 'add') {
-        if (!parsed.day) return "Please specify a day for your event.";
-        const date = getNextDateForWeekday(parsed.day);
-        const events = loadEvents();
-        events.push({
-          title: parsed.title,
-          date: date,
-          time: parsed.time,
-          desc: ''
-        });
-        saveEvents(events);
-        lastSuggestedActivity = null;
-        return `Added "${parsed.title}"${parsed.time ? ' at ' + parsed.time : ''} on ${parsed.day} (${date}).`;
-      }
-
-      // Can I do X at TIME on DAY
-      if (parsed.intent === 'can_do') {
-        if (!parsed.day) return "Please specify a day.";
-        const date = getNextDateForWeekday(parsed.day);
-        const events = loadEvents().filter(e => e.date === date);
-        let busy = false;
-        let conflictEvent = null;
-        if (parsed.time) {
-          for (const e of events) {
-            if (e.time && e.time.replace(/\s/g,'') === parsed.time.replace(/\s/g,'')) {
-              busy = true;
-              conflictEvent = e;
-              break;
-            }
-          }
-        }
-        if (busy) {
-          lastSuggestedActivity = null;
-          return `No, you already have "${conflictEvent.title}" at ${parsed.time} on ${parsed.day}.`;
-        } else {
-          events.push({
-            title: parsed.activity,
-            date: date,
-            time: parsed.time,
-            desc: ''
-          });
-          saveEvents([...loadEvents().filter(e => e.date !== date), ...events]);
-          lastSuggestedActivity = null;
-          return `Yes, you are free at ${parsed.time ? parsed.time : "that time"} on ${parsed.day}. I've added "${parsed.activity}" to your calendar.`;
-        }
-      }
-
-      // When can I do X on DAY (optionally between times)
-      if (parsed.intent === 'when_can_do') {
-        if (!parsed.day) return "Please specify a day.";
-        const date = getNextDateForWeekday(parsed.day);
-        const events = loadEvents().filter(e => e.date === date && e.time);
-        const busyTimes = events.map(e => e.time.replace(/\s/g,''));
-        function parseTime(t) {
-          t = t.trim().toLowerCase();
-          let [h, m] = t.split(':');
-          m = m ? parseInt(m) : 0;
-          if (t.includes('pm') && parseInt(h) < 12) h = parseInt(h) + 12;
-          else h = parseInt(h);
-          return h * 60 + m;
-        }
-        let start = parsed.start ? parseTime(parsed.start) : 8 * 60;
-        let end = parsed.end ? parseTime(parsed.end) : 20 * 60;
-        let found = null;
-        for (let mins = start; mins <= end; mins += 30) {
-          let hour = Math.floor(mins / 60);
-          let min = mins % 60;
-          let tstr = `${hour}:${min.toString().padStart(2, '0')}`;
-          if (!busyTimes.includes(tstr)) {
-            found = tstr;
-            break;
-          }
-        }
-        if (found) {
-          lastSuggestedActivity = {
-            title: parsed.activity,
-            date: date,
-            time: found,
-            desc: ''
-          };
-          return `You are free to "${parsed.activity}" at ${found} on ${parsed.day}. Say "add that to my calendar" to save it.`;
-        } else {
-          lastSuggestedActivity = null;
-          return "Sorry, you are busy during that time range.";
-        }
-      }
-
-      // Add last suggestion
-      if (parsed.intent === 'add_last_suggestion') {
-        if (lastSuggestedActivity) {
-          const events = loadEvents();
-          events.push(lastSuggestedActivity);
-          saveEvents(events);
-          const msg = `Added "${lastSuggestedActivity.title}" at ${lastSuggestedActivity.time} on ${new Date(lastSuggestedActivity.date).toLocaleDateString(undefined, { weekday: 'long' })}.`;
-          lastSuggestedActivity = null;
-          return msg;
-        } else {
-          return "Sorry, there's nothing to add right now.";
-        }
+      if (/add/.test(text)) {
+        const titleMatch = text.match(/add (?:event )?(.+?)(?: on |\s+at |\s*$)/i);
+        const dateMatch = text.match(/on (\d{4}-\d{2}-\d{2})/i);
+        const timeMatch = text.match(/at (\d{1,2}(:\d{2})?\s*[ap]m|\d{1,2}:\d{2})/i);
+        return {
+          action: "add",
+          title: titleMatch ? titleMatch[1].trim() : "Untitled",
+          date: dateMatch ? dateMatch[1] : null,
+          time: timeMatch ? timeMatch[1].replace(/\s+/g, '') : ""
+        };
       }
 
       // Delete event
-      if (parsed.intent === 'delete') {
-        let events = loadEvents();
-        let before = events.length;
-        events = events.filter(e => {
-          let match = true;
-          if (parsed.title) match = match && (!e.title || !e.title.toLowerCase().includes(parsed.title));
-          if (parsed.time) match = match && (!e.time || e.time.replace(/\s/g,'') !== parsed.time.replace(/\s/g,''));
-          if (parsed.day) {
-            const eventDay = new Date(e.date).toLocaleDateString(undefined, { weekday: 'long' }).toLowerCase();
-            match = match && eventDay !== parsed.day;
-          }
-          return !match;
-        });
-        saveEvents(events);
-        if (events.length < before) {
-          return "Event deleted.";
-        } else {
-          return "No matching event found to delete.";
+      if (/delete/.test(text)) {
+        const titleMatch = text.match(/delete (?:event )?(.+?)(?: on |\s+at |\s*$)/i);
+        const dateMatch = text.match(/on (\d{4}-\d{2}-\d{2})/i);
+        return {
+          action: "delete",
+          title: titleMatch ? titleMatch[1].trim() : null,
+          date: dateMatch ? dateMatch[1] : null
+        };
+      }
+
+      // Edit event
+      if (/edit/.test(text)) {
+        const titleMatch = text.match(/edit (?:event )?(.+?)(?: on |\s+at |\s*$)/i);
+        const dateMatch = text.match(/on (\d{4}-\d{2}-\d{2})/i);
+        const timeMatch = text.match(/to (\d{1,2}(:\d{2})?\s*[ap]m|\d{1,2}:\d{2})/i);
+        return {
+          action: "edit",
+          title: titleMatch ? titleMatch[1].trim() : null,
+          date: dateMatch ? dateMatch[1] : null,
+          time: timeMatch ? timeMatch[1].replace(/\s+/g, '') : null
+        };
+      }
+
+      // Show events
+      if (/show|list|display|what|which|when|where|who|do i have|my|our|family|calendar|event/.test(text)) {
+        if (/today/.test(text)) return { action: "show", date: new Date().toISOString().slice(0,10) };
+        if (/tomorrow/.test(text)) {
+          const d = new Date(); d.setDate(d.getDate()+1);
+          return { action: "show", date: d.toISOString().slice(0,10) };
+        }
+        if (/yesterday/.test(text)) {
+          const d = new Date(); d.setDate(d.getDate()-1);
+          return { action: "show", date: d.toISOString().slice(0,10) };
+        }
+        if (/week/.test(text)) return { action: "show", range: "week" };
+        if (/month/.test(text)) return { action: "show", range: "month" };
+        if (/year/.test(text)) return { action: "show", range: "year" };
+        const dateMatch = text.match(/(\d{4}-\d{2}-\d{2})/);
+        if (dateMatch) return { action: "show", date: dateMatch[1] };
+        return { action: "show", range: "all" };
+      }
+
+      // Availability
+      if (/free|available|busy|slot|gap|open|can i|am i/.test(text)) {
+        const dateMatch = text.match(/on (\d{4}-\d{2}-\d{2})/i);
+        const timeMatch = text.match(/at (\d{1,2}(:\d{2})?\s*[ap]m|\d{1,2}:\d{2})/i);
+        return {
+          action: "availability",
+          date: dateMatch ? dateMatch[1] : null,
+          time: timeMatch ? timeMatch[1].replace(/\s+/g, '') : null
+        };
+      }
+
+      // Help
+      if (/help|how|usage|example|can you|what can you do/.test(text)) {
+        return { action: "help" };
+      }
+
+      return { action: "unknown", original: input };
+    }
+
+    // --- Free AI API for general questions (no key required) ---
+    async function askFreeAiApi(question, calendarContext) {
+      // Using the public "duckduckgo instant answer" API as a placeholder for demo (not a real LLM, but no key needed)
+      // You can swap this for any other free, no-key API.
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(question + " " + calendarContext)}&format=json&no_redirect=1&no_html=1`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.AbstractText) return data.AbstractText;
+        if (data.Answer) return data.Answer;
+        if (data.RelatedTopics && data.RelatedTopics.length)
+          return data.RelatedTopics[0].Text || "Sorry, I couldn't find an answer.";
+        return "Sorry, I couldn't find an answer.";
+      } catch (e) {
+        return "Sorry, there was a problem contacting the free AI service.";
+      }
+    }
+
+    // --- Command Handlers ---
+    async function handleCommand(cmd) {
+      // Calculator
+      if (cmd.action === "calculate") {
+        try {
+          // eslint-disable-next-line no-eval
+          let result = eval(cmd.expr);
+          return `The result is: ${result}`;
+        } catch {
+          return "Sorry, I couldn't calculate that.";
         }
       }
 
-      // Calendar query
-      if (parsed.intent === 'query') {
-        if (!parsed.day) return "Please specify a day.";
-        const date = getNextDateForWeekday(parsed.day);
-        return formatEventsForDate(date, parsed.day);
+      // Add event
+      if (cmd.action === "add") {
+        if (!cmd.date) return "Please specify a date for the event (e.g. 'add event Meeting on 2024-06-01').";
+        const newEvent = {
+          title: cmd.title || "Untitled",
+          date: cmd.date,
+          time: cmd.time || "",
+          desc: "",
+          color: "#2563eb",
+          category: "",
+          private: false,
+          reminder: "",
+          location: ""
+        };
+        familyEvents.push(newEvent);
+        await supabase.from('calendars').upsert([{ family_id: familyId, events: familyEvents }]);
+        return `Event "${newEvent.title}" added on ${cmd.date}${cmd.time ? " at " + cmd.time : ""}.`;
       }
-      if (parsed.intent === 'list') {
-        return formatAllEvents();
+
+      // Delete event
+      if (cmd.action === "delete") {
+        if (!cmd.title || !cmd.date) return "Please specify the event title and date (e.g. 'delete event Meeting on 2024-06-01').";
+        const idx = familyEvents.findIndex(e => e.title.toLowerCase() === cmd.title.toLowerCase() && e.date === cmd.date);
+        if (idx === -1) return "Event not found.";
+        familyEvents.splice(idx, 1);
+        await supabase.from('calendars').upsert([{ family_id: familyId, events: familyEvents }]);
+        return `Event "${cmd.title}" on ${cmd.date} deleted.`;
       }
-      if (parsed.intent === 'weather') {
-        return await getWeatherString();
+
+      // Edit event
+      if (cmd.action === "edit") {
+        if (!cmd.title || !cmd.date || !cmd.time) return "Please specify the event title, date, and new time (e.g. 'edit event Meeting on 2024-06-01 to 16:00').";
+        const idx = familyEvents.findIndex(e => e.title.toLowerCase() === cmd.title.toLowerCase() && e.date === cmd.date);
+        if (idx === -1) return "Event not found.";
+        familyEvents[idx].time = cmd.time;
+        await supabase.from('calendars').upsert([{ family_id: familyId, events: familyEvents }]);
+        return `Event "${cmd.title}" on ${cmd.date} updated to ${cmd.time}.`;
       }
-      if (parsed.intent === 'location') {
-        return await getLocationString();
+
+      // Show events (detailed)
+      if (cmd.action === "show") {
+        let events = [];
+        let details = "";
+        if (cmd.date) {
+          events = familyEvents.filter(e => e.date === cmd.date);
+          if (events.length === 0) return `No events found for ${cmd.date}.`;
+          details = events.map(e =>
+            `• "${e.title}"${e.time ? " at " + e.time : ""}${e.location ? " (Location: " + e.location + ")" : ""}${e.desc ? " - " + e.desc : ""}`
+          ).join('\n');
+          return `Events on ${cmd.date}:\n${details}`;
+        }
+        if (cmd.range === "week") {
+          const today = new Date();
+          const week = [];
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(today); d.setDate(today.getDate() + i);
+            const ds = d.toISOString().slice(0,10);
+            const dayEvents = familyEvents.filter(e => e.date === ds);
+            if (dayEvents.length) {
+              week.push(ds + ":\n" + dayEvents.map(e =>
+                `  • "${e.title}"${e.time ? " at " + e.time : ""}${e.location ? " (Location: " + e.location + ")" : ""}${e.desc ? " - " + e.desc : ""}`
+              ).join('\n'));
+            }
+          }
+          return week.length ? "Events this week:\n" + week.join('\n') : "No events this week.";
+        }
+        if (cmd.range === "month") {
+          const m = (new Date()).toISOString().slice(0,7);
+          const monthEvents = familyEvents.filter(e => e.date && e.date.startsWith(m));
+          if (monthEvents.length === 0) return "No events this month.";
+          details = monthEvents.map(e =>
+            `• "${e.title}" on ${e.date}${e.time ? " at " + e.time : ""}${e.location ? " (Location: " + e.location + ")" : ""}${e.desc ? " - " + e.desc : ""}`
+          ).join('\n');
+          return `Events this month:\n${details}`;
+        }
+        if (cmd.range === "year") {
+          const y = (new Date()).toISOString().slice(0,4);
+          const yearEvents = familyEvents.filter(e => e.date && e.date.startsWith(y));
+          if (yearEvents.length === 0) return "No events this year.";
+          details = yearEvents.map(e =>
+            `• "${e.title}" on ${e.date}${e.time ? " at " + e.time : ""}${e.location ? " (Location: " + e.location + ")" : ""}${e.desc ? " - " + e.desc : ""}`
+          ).join('\n');
+          return `Events this year:\n${details}`;
+        }
+        if (familyEvents.length === 0) return "No events found.";
+        details = familyEvents.map(e =>
+          `• "${e.title}" on ${e.date}${e.time ? " at " + e.time : ""}${e.location ? " (Location: " + e.location + ")" : ""}${e.desc ? " - " + e.desc : ""}`
+        ).join('\n');
+        return `All events:\n${details}`;
       }
-      if (parsed.intent === 'directions') {
-        return await getDirectionsString(parsed.query);
+
+      // Availability (detailed)
+      if (cmd.action === "availability") {
+        let date = cmd.date || new Date().toISOString().slice(0,10);
+        let time = cmd.time;
+        let events = familyEvents.filter(e => e.date === date);
+
+        if (!time) {
+          if (events.length === 0) {
+            // Find next busy day
+            let nextBusy = familyEvents
+              .filter(e => e.date > date)
+              .sort((a, b) => a.date.localeCompare(b.date))[0];
+            let prevBusy = familyEvents
+              .filter(e => e.date < date)
+              .sort((a, b) => b.date.localeCompare(a.date))[0];
+            let msg = `You are free all day on ${date}.`;
+            if (nextBusy) msg += `\nYour next event is "${nextBusy.title}" on ${nextBusy.date}${nextBusy.time ? " at " + nextBusy.time : ""}.`;
+            if (prevBusy) msg += `\nYour last event was "${prevBusy.title}" on ${prevBusy.date}${prevBusy.time ? " at " + prevBusy.time : ""}.`;
+            return msg;
+          }
+          // Show busy times and free slots
+          let busyTimes = events
+            .filter(e => e.time)
+            .map(e => e.time)
+            .sort();
+          let busyList = events
+            .map(e => `${e.title}${e.time ? " at " + e.time : ""}`)
+            .join(', ');
+          let msg = `You have these events on ${date}: ${busyList}.`;
+          if (busyTimes.length) {
+            msg += `\nBusy times: ${busyTimes.join(', ')}.`;
+            // Suggest free slots (simple: gaps between events)
+            let freeSlots = [];
+            for (let i = 0; i < busyTimes.length - 1; i++) {
+              freeSlots.push(`between ${busyTimes[i]} and ${busyTimes[i+1]}`);
+            }
+            if (freeSlots.length) msg += `\nPossible free slots: ${freeSlots.join(', ')}.`;
+          } else {
+            msg += `\nYou have events, but no specific times set.`;
+          }
+          return msg;
+        }
+
+        // If a time is specified, check for conflicts and suggest alternatives
+        let conflict = events.find(e => {
+          if (!e.time) return false;
+          let t1 = (e.time || '').replace(/[ap]m/i, '').trim();
+          let t2 = time.replace(/[ap]m/i, '').trim();
+          return t1 === t2;
+        });
+        if (conflict) {
+          // Suggest next available time
+          let allTimes = events.filter(e => e.time).map(e => e.time).sort();
+          let idx = allTimes.indexOf(conflict.time);
+          let nextFree = allTimes[idx + 1] ? `Try after ${allTimes[idx + 1]}.` : "Try later in the day.";
+          return `You already have "${conflict.title}" at ${time} on ${date}. ${nextFree}`;
+        } else {
+          // Show what is before/after this time
+          let busyTimes = events.filter(e => e.time).map(e => e.time).sort();
+          let before = busyTimes.filter(t => t < time).pop();
+          let after = busyTimes.find(t => t > time);
+          let msg = `You are free at ${time} on ${date}.`;
+          if (before) msg += ` Your previous event is at ${before}.`;
+          if (after) msg += ` Your next event is at ${after}.`;
+          return msg;
+        }
       }
-      return "I'm here to help you manage your schedule and answer questions about your events, weather, location, or directions. Try asking something like 'What's on my calendar?', 'Will it rain tomorrow?', or 'Directions to Starbucks'.";
+
+      // Help
+      if (cmd.action === "help") {
+        return `You can ask me things like:
+- "Show my events today"
+- "Add event Dentist on 2024-06-01 at 15:00"
+- "Delete event Dentist on 2024-06-01"
+- "Edit event Dentist on 2024-06-01 to 16:00"
+- "Can I do yoga at 10:00 on 2024-06-01?"
+- "Am I free at 2pm tomorrow?"
+- "What is 5*7+2?"
+- "When is my next free slot?"
+- "List all meetings next week"
+- "Show everything for this month"
+- "Calculate 12*8+4"
+I understand many ways to ask about your calendar, events, and even math!`;
+      }
+
+      // For any other question, use the free AI API with calendar context
+      if (cmd.action === "unknown") {
+        // Provide context: list of events as a string
+        const context = familyEvents.length
+          ? familyEvents.map(e => `${e.title} on ${e.date}${e.time ? " at " + e.time : ""}`).join("; ")
+          : "No events scheduled.";
+        return await askFreeAiApi(cmd.original || "Unknown question", context);
+      }
+
+      return "Sorry, I didn't understand that. Try asking about your events, or say 'help'.";
     }
 
-    // --- UI Logic ---
-    const chat = document.getElementById('chat');
-    const form = document.getElementById('input-area');
-    const userInput = document.getElementById('user-input');
-
-    function appendMessage(sender, text) {
-      const div = document.createElement('div');
-      div.className = sender;
-      div.innerHTML = `<strong>${sender === 'user' ? 'You' : 'AI'}:</strong> ${text}`;
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    form.addEventListener('submit', async function(e) {
+    // --- Form Handler ---
+    aiForm.onsubmit = async function(e) {
       e.preventDefault();
-      const input = userInput.value.trim();
-      if (!input) return;
-      appendMessage('user', input);
-      appendMessage('ai', '<em>Thinking…</em>');
-      const response = await aiRespond(input);
-      chat.lastChild.innerHTML = `<strong>AI:</strong> ${response}`;
-      userInput.value = '';
-    });
+      const input = aiInput.value;
+      appendMessage(input, "user");
+      aiInput.value = "";
+      const cmd = parseCommand(input);
+      let response = "Thinking...";
+      appendMessage(response, "ai");
+      await loadProfileAndEvents(); // Always refresh events before acting
+      response = await handleCommand(cmd);
+      // Replace last AI message
+      aiChat.lastChild.textContent = response;
+    };
 
-    // Greet on load
-    const greetName = user.name ? user.name : "there";
-    appendMessage('ai', `Hi ${greetName}! Ask me about your calendar, weather, location, or directions. For example:<br>- Add a dentist appointment at 3:00 on Monday<br>- Can I do homework at 5:00 on Friday<br>- When can I do homework on Friday inbetween 10:00 and 2:00<br>- Add that to my calendar<br>- Delete homework at 10:00 on Friday<br>- What's the weather?<br>- Where am I?<br>- Directions to Starbucks or 123 Main St`);
+    // --- Initial Load ---
+    loadProfileAndEvents();
+    appendMessage("Hi! Ask me anything about your calendar. I understand many ways to ask about your events, time, and even math. Type 'help' for examples.", "ai");
   </script>
-    <footer>
-    Daylee -  Organize your life, your way.
-  </footer>
 </body>
 </html>
