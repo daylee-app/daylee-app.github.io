@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daylee – Find Your Location</title>
+  <meta name="description" content="See your current location and get directions anywhere with Daylee.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <link href="/css/home.css" rel="stylesheet">
+  <link href="/css/main.css" rel="stylesheet">
+  <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    .location-section {
+      margin: 2rem auto;
+      max-width: 480px;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 24px #2563eb11;
+      padding: 2rem;
+      text-align: center;
+    }
+    #map {
+      height: 260px;
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 12px #2563eb22;
+    }
+    .directions-form input {
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      width: 70%;
+      margin-right: 0.5rem;
+      font-size: 1rem;
+    }
+    .directions-form button {
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .directions-form button:hover {
+      background: #1d4ed8;
+    }
+    .location-status {
+      color: #2563eb;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+    <a href="/dashboard" id="top-link">< Dashboard</a>
+  <header>
+    <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
+    <br>
+    <span class="logo">daylee</span>
+    <div class="subtitle">Find your location & get directions.</div>
+  </header>
+  <main>
+    <section class="location-section">
+      <div class="location-status" id="locationStatus">Getting your location…</div>
+      <div id="map"></div>
+            <form class="directions-form" id="searchForm" autocomplete="off">
+        <input type="text" id="placeQuery" placeholder="Search for nearby places (e.g. coffee, library)" required>
+        <button type="submit">Search</button>
+      </form>
+      <ul id="results" style="list-style:none;padding:0;margin-top:1rem;"></ul>
+    </section>
+  </main>
+  <footer>
+    Daylee - Organize your life, your way.
+  </footer>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    let userLat, userLng;
+    const status = document.getElementById('locationStatus');
+    const mapDiv = document.getElementById('map');
+    const resultsList = document.getElementById('results');
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        userLat = pos.coords.latitude;
+        userLng = pos.coords.longitude;
+        status.textContent = "You're here!";
+        // Initialize map
+        const map = L.map('map').setView([userLat, userLng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        L.marker([userLat, userLng]).addTo(map)
+          .bindPopup("You are here!").openPopup();
+      }, function() {
+        status.textContent = "Unable to get your location.";
+        mapDiv.style.display = 'none';
+      });
+    } else {
+      status.textContent = "Geolocation is not supported by your browser.";
+      mapDiv.style.display = 'none';
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const query = encodeURIComponent(document.getElementById('placeQuery').value);
+      if (typeof userLat === 'number' && typeof userLng === 'number') {
+        status.textContent = "Searching nearby…";
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=10&viewbox=${userLng-0.02},${userLat+0.02},${userLng+0.02},${userLat-0.02}&bounded=1`)
+          .then(res => res.json())
+          .then(data => {
+            resultsList.innerHTML = '';
+            if (data.length === 0) {
+              status.textContent = "No places found nearby.";
+              return;
+            }
+            status.textContent = `Found ${data.length} places:`;
+            data.forEach(place => {
+              const li = document.createElement('li');
+              li.style.margin = "0.5rem 0";
+              li.innerHTML = `<button style="background:#f1f5fd;border:none;padding:0.7rem 1rem;border-radius:8px;cursor:pointer;width:100%;text-align:left;">
+                <b>${place.display_name.split(',')[0]}</b><br>
+                <span style="font-size:0.95em;color:#555;">${place.display_name}</span>
+              </button>`;
+              li.querySelector('button').onclick = () => {
+                const url = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${place.lat},${place.lon}`;
+                window.open(url, '_blank');
+              };
+              resultsList.appendChild(li);
+            });
+          })
+          .catch(() => {
+            status.textContent = "Error searching for places.";
+          });
+      } else {
+        alert('Location not available yet.');
+      }
+    });
+  </script>
+</body>
+</html>
