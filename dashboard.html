@@ -3,13 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Daylee Dashboard</title>
-  <meta name="description" content="Your Daylee calendar – see your events, weather, and more.">
+  <title>Daylee – A Calendar App, Reimagined</title>
+  <meta name="description" content="Daylee is a modern calendar app with built-in weather, AI tools, smart notifications, and more. Organize your life, your way.">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <link href="/css/home.css" rel="stylesheet">
   <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
-  <link href="/css/calendar.css" rel="stylesheet">
 </head>
 <body>
-  
+<div class="loader"></div>
+<script>
+  // Show loader for 2 seconds, then hide
+  window.addEventListener('DOMContentLoaded', function() {
+    const loader = document.querySelector('.loader');
+    if (loader) {
+      loader.style.display = 'block';
+      setTimeout(() => {
+        loader.style.opacity = '0';
+        loader.style.pointerEvents = 'none';
+        setTimeout(() => loader.style.display = 'none', 400);
+      }, 3000);
+    }
+  });
+</script>
+  <header>
+     <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
+     <br>
+    <span class="logo">daylee</span>
+    <div class="subtitle">A calendar app, reimagined.<br>Smarter, simpler, and more connected to your day.</div>
+  </header>
+  <main>
+    <section class="features">
+      <ul class="feature-list">
+        <a href="/weather">
+        <li>
+          <span class="feature-icon"><i class="fa-solid fa-cloud-bolt"></i></span>
+          <div>
+            <div class="feature-title">Weather</div>
+            <div class="feature-desc">See the forecast for your events and plan your day with confidence.</div>
+          </div>
+        </li>
+        </a>
+        <a href="/weather">
+        <li>
+          <span class="feature-icon"><i class="fa-solid fa-robot"></i></span>
+          <div>
+            <div class="feature-title">Schedula Ai</div>
+            <div class="feature-desc">Let AI help you schedule, suggest, and optimize your calendar.</div>
+          </div>
+        </li>
+        </a>
+        <a href="/calender">
+        <li>
+          <span class="feature-icon"><i class="fa-solid fa-calendar-days"></i></span>
+          <div>
+            <div class="feature-title">Calender</div>
+            <div class="feature-desc">Always stay on track, by planning out your day.</div>
+          </div>
+        </li>
+        </a>
+        <a href="/locate">
+        <li>
+          <span class="feature-icon"><i class="fa-solid fa-earth-americas"></i></span>
+          <div>
+            <div class="feature-title">Websites & Locations</div>
+            <div class="feature-desc">Attach links and places to your events for easy access and navigation.</div>
+          </div>
+        </li>
+        </a>
+      </ul>
+    </section>
+    <section class="mockup">
+      <!-- Replace the src below with your actual app screenshot or mockup -->
+      <img class="mockup-img" src="/uploads/images/calendar-stock.png" alt="Calendar">
+    </section>
+  </main>
+  <footer>
+    &copy; 2025 Daylee. All rights reserved.
+  </footer>
 </body>
-</html>
+</html>v
