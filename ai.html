@@ -20,6 +20,7 @@
     #user-input { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
     #send-btn { padding: 8px 16px; border: none; border-radius: 4px; background: #1976d2; color: #fff; cursor: pointer; }
     #send-btn:hover { background: #1565c0; }
+    .directions-link { word-break: break-all; }
   </style>
 </head>
 <body>
@@ -34,7 +35,7 @@
     <h1>AI Calendar Assistant</h1>
     <div id="chat"></div>
     <form id="input-area">
-      <input type="text" id="user-input" placeholder="Ask about your calendar, weather, or location..." autocomplete="off" required />
+      <input type="text" id="user-input" placeholder="Ask about your calendar, weather, location, or directions..." autocomplete="off" required />
       <button type="submit" id="send-btn">Send</button>
     </form>
   </div>
@@ -92,7 +93,6 @@
           pos => {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
-            // Use Open-Meteo API (no key required)
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,apparent_temperature,precipitation,weathercode,cloudcover,windspeed_10m,winddirection_10m,relativehumidity_2m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,weathercode&temperature_unit=auto&windspeed_unit=auto&precipitation_unit=mm&timezone=auto`)
               .then(res => res.json())
               .then(data => {
@@ -110,8 +110,6 @@
                   77: "Snow grains", 80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
                   85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm hail", 99: "Thunderstorm hail"
                 };
-                const tempUnit = w.temperature_unit || "°C";
-                const windUnit = w.windspeed_unit || "km/h";
                 resolve(
                   `Current weather: <b>${weatherCodes[w.weathercode] || "Unknown"}</b><br>
                   Temperature: ${w.temperature}°C<br>
@@ -139,7 +137,6 @@
           pos => {
             const lat = pos.coords.latitude;
             const lon = pos.coords.longitude;
-            // Use Nominatim reverse geocoding
             fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
               .then(res => res.json())
               .then(data => {
@@ -156,10 +153,51 @@
       });
     }
 
+    // --- Directions Logic ---
+    async function getDirectionsString(query) {
+      // Try to get user location
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          resolve("Geolocation is not supported by your browser.");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          async pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            // If query looks like an address (has numbers or commas), just use it
+            if (/\d+|,/.test(query)) {
+              const url = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${encodeURIComponent(query)}`;
+              resolve(`Directions: <a class="directions-link" href="${url}" target="_blank">${query}</a>`);
+              return;
+            }
+            // Otherwise, search for the nearest place using Nominatim
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&viewbox=${lon-0.1},${lat+0.1},${lon+0.1},${lat-0.1}&bounded=1`)
+              .then(res => res.json())
+              .then(results => {
+                if (results && results.length > 0) {
+                  const place = results[0];
+                  const url = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${place.lat},${place.lon}`;
+                  resolve(`Directions to nearest <b>${query}</b>: <a class="directions-link" href="${url}" target="_blank">${place.display_name}</a>`);
+                } else {
+                  resolve("Sorry, I couldn't find that place nearby.");
+                }
+              })
+              .catch(() => resolve("Sorry, I couldn't search for that place."));
+          },
+          () => resolve("Could not get your location for directions. Please allow location access.")
+        );
+      });
+    }
+
+    // --- Activity Suggestion State ---
+    let lastSuggestedActivity = null;
+
     // --- Input Parsing ---
     function parseInput(input) {
       input = input.toLowerCase();
-      // Calendar add
+
+      // Add event
       let addMatch = input.match(/add (?:an?|the)?\s*(.*?)\s*(?:appointment|event)?\s*(?:at|@)?\s*([0-9:apm ]+)?\s*(?:on)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/);
       if (addMatch) {
         return {
@@ -169,6 +207,46 @@
           day: addMatch[3]
         };
       }
+
+      // "Can I do X at TIME on DAY"
+      let canDoMatch = input.match(/can i (.+?) (?:at\s*([0-9:apm ]+))?\s*(?:on)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/);
+      if (canDoMatch) {
+        return {
+          intent: 'can_do',
+          activity: canDoMatch[1].trim(),
+          time: canDoMatch[2] ? canDoMatch[2].trim() : '',
+          day: canDoMatch[3]
+        };
+      }
+
+      // "When can I do X on DAY" or "When can I do X on DAY between TIME1 and TIME2"
+      let whenCanDoMatch = input.match(/when can i (.+?) on (monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?: (?:between|inbetween) ([0-9:apm ]+) and ([0-9:apm ]+))?/);
+      if (whenCanDoMatch) {
+        return {
+          intent: 'when_can_do',
+          activity: whenCanDoMatch[1].trim(),
+          day: whenCanDoMatch[2],
+          start: whenCanDoMatch[3] ? whenCanDoMatch[3].trim() : null,
+          end: whenCanDoMatch[4] ? whenCanDoMatch[4].trim() : null
+        };
+      }
+
+      // "Add that to my calendar"
+      if (input.match(/add that to (my )?calendar/)) {
+        return { intent: 'add_last_suggestion' };
+      }
+
+      // Delete event
+      let delMatch = input.match(/delete (?:the )?(.*?)(?: (?:on|at) )?([0-9:apm ]+)?(?: on )?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)?/);
+      if (delMatch && (delMatch[1] || delMatch[2] || delMatch[3])) {
+        return {
+          intent: 'delete',
+          title: delMatch[1] ? delMatch[1].trim() : null,
+          time: delMatch[2] ? delMatch[2].trim() : null,
+          day: delMatch[3]
+        };
+      }
+
       // Calendar query
       let queryMatch = input.match(
         /(can i|do i|am i|is there|what's|what is|show|list|anything|free|available|busy|plans?|scheduled?|events?).*?(on|for)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/
@@ -179,6 +257,7 @@
           day: queryMatch[3]
         };
       }
+
       // List all events
       if (input.match(/all events|everything|full calendar|show calendar|list all|what's my week|what's my schedule/)) {
         return { intent: 'list' };
@@ -191,12 +270,19 @@
       if (input.match(/where am i|my location|current location|where are we|what is my address|what's my address|where is this/)) {
         return { intent: 'location' };
       }
+      // Directions (address or place/company)
+      if (input.match(/(directions|how do i get to|navigate|route|way to|get to|take me to|go to|drive to|walk to|show me the way to|find directions to)\s+(.+)/)) {
+        const match = input.match(/(directions|how do i get to|navigate|route|way to|get to|take me to|go to|drive to|walk to|show me the way to|find directions to)\s+(.+)/);
+        return { intent: 'directions', query: match[2].trim() };
+      }
       return { intent: 'unknown' };
     }
 
     // --- AI Response Logic ---
     async function aiRespond(input) {
       const parsed = parseInput(input);
+
+      // Add event
       if (parsed.intent === 'add') {
         const date = getNextDateForWeekday(parsed.day);
         const events = loadEvents();
@@ -207,8 +293,120 @@
           desc: ''
         });
         saveEvents(events);
+        lastSuggestedActivity = null;
         return `Added "${parsed.title}"${parsed.time ? ' at ' + parsed.time : ''} on ${parsed.day} (${date}).`;
       }
+
+      // Can I do X at TIME on DAY
+      if (parsed.intent === 'can_do') {
+        const date = getNextDateForWeekday(parsed.day);
+        const events = loadEvents().filter(e => e.date === date);
+        let busy = false;
+        let conflictEvent = null;
+        if (parsed.time) {
+          for (const e of events) {
+            if (e.time && e.time.replace(/\s/g,'') === parsed.time.replace(/\s/g,'')) {
+              busy = true;
+              conflictEvent = e;
+              break;
+            }
+          }
+        }
+        if (busy) {
+          lastSuggestedActivity = null;
+          return `No, you already have "${conflictEvent.title}" at ${parsed.time} on ${parsed.day}.`;
+        } else {
+          // Add the activity as an event
+          events.push({
+            title: parsed.activity,
+            date: date,
+            time: parsed.time,
+            desc: ''
+          });
+          saveEvents([...loadEvents().filter(e => e.date !== date), ...events]);
+          lastSuggestedActivity = null;
+          return `Yes, you are free at ${parsed.time ? parsed.time : "that time"} on ${parsed.day}. I've added "${parsed.activity}" to your calendar.`;
+        }
+      }
+
+      // When can I do X on DAY (optionally between times)
+      if (parsed.intent === 'when_can_do') {
+        const date = getNextDateForWeekday(parsed.day);
+        const events = loadEvents().filter(e => e.date === date && e.time);
+        // Build a list of busy times
+        const busyTimes = events.map(e => e.time.replace(/\s/g,''));
+        // Build a list of possible times (every 30 min between 8:00 and 20:00 or user range)
+        function parseTime(t) {
+          t = t.trim().toLowerCase();
+          let [h, m] = t.split(':');
+          m = m ? parseInt(m) : 0;
+          if (t.includes('pm') && parseInt(h) < 12) h = parseInt(h) + 12;
+          else h = parseInt(h);
+          return h * 60 + m;
+        }
+        let start = parsed.start ? parseTime(parsed.start) : 8 * 60;
+        let end = parsed.end ? parseTime(parsed.end) : 20 * 60;
+        let found = null;
+        for (let mins = start; mins <= end; mins += 30) {
+          let hour = Math.floor(mins / 60);
+          let min = mins % 60;
+          let tstr = `${hour}:${min.toString().padStart(2, '0')}`;
+          if (!busyTimes.includes(tstr)) {
+            found = tstr;
+            break;
+          }
+        }
+        if (found) {
+          lastSuggestedActivity = {
+            title: parsed.activity,
+            date: date,
+            time: found,
+            desc: ''
+          };
+          return `You are free to "${parsed.activity}" at ${found} on ${parsed.day}. Say "add that to my calendar" to save it.`;
+        } else {
+          lastSuggestedActivity = null;
+          return "Sorry, you are busy during that time range.";
+        }
+      }
+
+      // Add last suggestion
+      if (parsed.intent === 'add_last_suggestion') {
+        if (lastSuggestedActivity) {
+          const events = loadEvents();
+          events.push(lastSuggestedActivity);
+          saveEvents(events);
+          const msg = `Added "${lastSuggestedActivity.title}" at ${lastSuggestedActivity.time} on ${new Date(lastSuggestedActivity.date).toLocaleDateString(undefined, { weekday: 'long' })}.`;
+          lastSuggestedActivity = null;
+          return msg;
+        } else {
+          return "Sorry, there's nothing to add right now.";
+        }
+      }
+
+      // Delete event
+      if (parsed.intent === 'delete') {
+        let events = loadEvents();
+        let before = events.length;
+        events = events.filter(e => {
+          let match = true;
+          if (parsed.title) match = match && (!e.title || !e.title.toLowerCase().includes(parsed.title));
+          if (parsed.time) match = match && (!e.time || e.time.replace(/\s/g,'') !== parsed.time.replace(/\s/g,''));
+          if (parsed.day) {
+            const eventDay = new Date(e.date).toLocaleDateString(undefined, { weekday: 'long' }).toLowerCase();
+            match = match && eventDay !== parsed.day;
+          }
+          return !match;
+        });
+        saveEvents(events);
+        if (events.length < before) {
+          return "Event deleted.";
+        } else {
+          return "No matching event found to delete.";
+        }
+      }
+
+      // Calendar query
       if (parsed.intent === 'query') {
         const date = getNextDateForWeekday(parsed.day);
         return formatEventsForDate(date, parsed.day);
@@ -222,7 +420,10 @@
       if (parsed.intent === 'location') {
         return await getLocationString();
       }
-      return "I'm here to help you manage your schedule and answer questions about your events, weather, or location. It looks like your request doesn't relate to those topics—try asking something like 'What's on my calendar?' or 'Will it rain tomorrow?'";
+      if (parsed.intent === 'directions') {
+        return await getDirectionsString(parsed.query);
+      }
+      return "I'm here to help you manage your schedule and answer questions about your events, weather, location, or directions. Try asking something like 'What's on my calendar?', 'Will it rain tomorrow?', or 'Directions to Starbucks'.";
     }
 
     // --- UI Logic ---
@@ -250,7 +451,7 @@
     });
 
     // Greet on load
-    appendMessage('ai', "Hi! Ask me about your calendar, weather, or location. For example:<br>- Add a dentist appointment at 3:00 on Monday<br>- What's the weather?<br>- Where am I?");
+    appendMessage('ai', "Hi! Ask me about your calendar, weather, location, or directions. For example:<br>- Add a dentist appointment at 3:00 on Monday<br>- Can I do homework at 5:00 on Friday<br>- When can I do homework on Friday inbetween 10:00 and 2:00<br>- Add that to my calendar<br>- Delete homework at 10:00 on Friday<br>- What's the weather?<br>- Where am I?<br>- Directions to Starbucks or 123 Main St");
   </script>
     <footer>
     Daylee -  Organize your life, your way.
