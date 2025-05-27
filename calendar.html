@@ -9,14 +9,14 @@
   <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
   <link href="/css/calendar.css" rel="stylesheet">
   <link href="/css/main.css" rel="stylesheet">
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <a href="/dashboard" id="top-link">< Dashboard</a>
   <div class="calendar-header">
     <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="calendar-logo">
-    <div class="calendar-title">Your Calendar</div>
-    <div class="calendar-subtitle">See your events, weather, and more</div>
+    <div class="calendar-title">Family Calendar</div>
+    <div class="calendar-subtitle">See your family's events, weather, and more</div>
   </div>
   <div class="calendar-container">
     <button class="add-event-btn" id="addEventBtn" title="Add Event">+</button>
@@ -25,9 +25,7 @@
       <span id="monthYear"></span>
       <button id="nextMonth">&gt;</button>
     </div>
-    <div class="calendar-grid" id="calendarGrid">
-      <!-- Calendar will be rendered here -->
-    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
   </div>
   <!-- Modal for adding event -->
   <div class="modal-bg" id="eventModalBg" style="display:none;">
@@ -61,20 +59,26 @@
           <li><b>Navigate months</b> with the <span style="color:#2563eb;">&lt;</span> and <span style="color:#2563eb;">&gt;</span> buttons.</li>
           <li><b>Add events</b> with the <span style="color:#06b6d4;">+</span> button in the top right or next to any hour.</li>
           <li><b>Click a day</b> to view and schedule events by the hour.</li>
-          <li>Your events are saved in your browser automatically.</li>
+          <li>Your events are shared with your family automatically.</li>
         </ul>
         <div style="margin-top:1.2em; color:#64748b; font-size:0.98em;">
           You can always revisit this tutorial from the menu.
         </div>
       </div>
-   <button id="tutorialGotItBtn" class="modal-form" style="margin:0 auto; width:70%;">Got it!</button>
-</div>
+      <button id="tutorialGotItBtn" class="modal-form" style="margin:0 auto; width:70%;">Got it!</button>
+    </div>
   </div>
   <!-- Notification Container -->
   <div id="notification" style="display:none;position:fixed;top:1.2rem;right:1.2rem;z-index:12000;min-width:220px;max-width:90vw;padding:1rem 1.5rem;background:linear-gradient(90deg,#2563eb 0%,#06b6d4 100%);color:#fff;font-size:1.1rem;font-weight:600;border-radius:1em;box-shadow:0 4px 24px #2563eb33;transition:opacity 0.3s,transform 0.3s;opacity:0;pointer-events:none;"></div>
-
   <script>
-    // --- Calendar State ---
+    // --- Supabase Setup ---
+    const SUPABASE_URL = "https://nmgikevqydvvjdgpdhjb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tZ2lrZXZxeWR2dmpkZ3BkaGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNzI4ODcsImV4cCI6MjA2Mzk0ODg4N30.1zPr-aOlkETD4FhuwhneHoXavSE6N0uNu-awxsidAZQ";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- State ---
+    let myProfile = null, myFamilyId = null, myOwnerName = null, myOwnerEmail = null;
+    let familyEvents = [];
     const calendarGrid = document.getElementById('calendarGrid');
     const monthYear = document.getElementById('monthYear');
     const prevMonthBtn = document.getElementById('prevMonth');
@@ -83,39 +87,67 @@
     const eventModalBg = document.getElementById('eventModalBg');
     const closeEventModal = document.getElementById('closeEventModal');
     const eventForm = document.getElementById('eventForm');
-    const dayDetailModalBg = document.getElementById('dayDetailModalBg');
-    const closeDayDetailModal = document.getElementById('closeDayDetailModal');
-    const dayDetailTitle = document.getElementById('dayDetailTitle');
-    const hourSchedule = document.getElementById('hourSchedule');
     const eventTitle = document.getElementById('eventTitle');
     const eventDate = document.getElementById('eventDate');
     const eventTime = document.getElementById('eventTime');
     const eventDesc = document.getElementById('eventDesc');
-
-    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayDetailModalBg = document.getElementById('dayDetailModalBg');
+    const closeDayDetailModal = document.getElementById('closeDayDetailModal');
+    const dayDetailTitle = document.getElementById('dayDetailTitle');
+    const hourSchedule = document.getElementById('hourSchedule');
     let today = new Date();
     let currentMonth = today.getMonth();
     let currentYear = today.getFullYear();
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    // Store events as { date: 'YYYY-MM-DD', time: 'HH:MM', title, desc }
-    let events = JSON.parse(localStorage.getItem('dayleeEvents') || '[]');
+    // --- Profile & Family ---
+    async function getProfileAndFamily() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { showNotification("Please sign in."); return null; }
+      const { data: profile } = await supabase.from('profiles').select('*').eq('email', user.email).single();
+      if (!profile) { showNotification("No profile found."); return null; }
+      myProfile = profile;
+      myFamilyId = profile.family_id;
+      myOwnerName = profile.name;
+      myOwnerEmail = profile.email;
+      return profile;
+    }
+
+    // --- Load Family Calendar ---
+    async function loadFamilyCalendar() {
+      if (!myFamilyId) return;
+      const { data: cal } = await supabase.from('calendars').select('*').eq('family_id', myFamilyId).single();
+      familyEvents = [];
+      if (cal && cal.events) {
+        try { familyEvents = Array.isArray(cal.events) ? cal.events : JSON.parse(cal.events); } catch { familyEvents = []; }
+      }
+      renderCalendar(currentMonth, currentYear);
+    }
+
+    // --- Save Family Calendar to Supabase ---
+    async function saveFamilyCalendar(events) {
+      if (!myFamilyId) return;
+      const { error } = await supabase.from('calendars').upsert([{
+        family_id: myFamilyId,
+        events: events
+      }], { onConflict: ['family_id'] });
+      if (error) {
+        console.error('Supabase upsert error:', error);
+        showNotification('Failed to save event: ' + error.message);
+      }
+    }
 
     // --- Calendar Rendering ---
     function renderCalendar(month, year) {
       calendarGrid.innerHTML = '';
-      // Days of week header
       daysOfWeek.forEach(day => {
         const dayDiv = document.createElement('div');
         dayDiv.className = 'calendar-day';
         dayDiv.textContent = day;
         calendarGrid.appendChild(dayDiv);
       });
-
-      // First day of month
       const firstDay = new Date(year, month, 1).getDay();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-      // Fill blanks before first day
       for (let i = 0; i < firstDay; i++) {
         const blank = document.createElement('div');
         blank.className = 'calendar-cell';
@@ -123,25 +155,19 @@
         blank.style.cursor = 'default';
         calendarGrid.appendChild(blank);
       }
-
-      // Fill days
       for (let day = 1; day <= daysInMonth; day++) {
         const cell = document.createElement('div');
         cell.className = 'calendar-cell';
         const cellDate = new Date(year, month, day);
         const cellDateStr = cellDate.toISOString().slice(0, 10);
-
-        if (
-          day === today.getDate() &&
-          month === today.getMonth() &&
-          year === today.getFullYear()
-        ) {
+        if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
           cell.classList.add('today');
         }
-        cell.textContent = day;
-
-        // Show events for this day
-        const dayEvents = events.filter(e => e.date === cellDateStr);
+        const dayNum = document.createElement('div');
+        dayNum.className = 'calendar-day-number';
+        dayNum.textContent = day;
+        cell.appendChild(dayNum);
+        const dayEvents = familyEvents.filter(e => e.date === cellDateStr);
         if (dayEvents.length > 0) {
           const eventsDiv = document.createElement('div');
           eventsDiv.className = 'calendar-events';
@@ -150,8 +176,6 @@
           ).join('<br>');
           cell.appendChild(eventsDiv);
         }
-
-        // Click to open day detail
         cell.addEventListener('click', () => openDayDetail(cellDateStr, day, month, year));
         calendarGrid.appendChild(cell);
       }
@@ -165,20 +189,13 @@
 
     prevMonthBtn.onclick = function() {
       currentMonth--;
-      if (currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
-      }
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
       updateMonthYear();
       renderCalendar(currentMonth, currentYear);
     };
-
     nextMonthBtn.onclick = function() {
       currentMonth++;
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-      }
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
       updateMonthYear();
       renderCalendar(currentMonth, currentYear);
     };
@@ -190,9 +207,6 @@
       eventDate.value = '';
       eventTime.value = '';
       eventDesc.value = '';
-      setTimeout(() => {
-        eventModalBg.querySelector('.modal').style.transform = 'scale(1)';
-      }, 10);
     };
     closeEventModal.onclick = function() {
       eventModalBg.style.display = 'none';
@@ -201,20 +215,20 @@
       if (e.target === eventModalBg) eventModalBg.style.display = 'none';
     };
 
-    eventForm.onsubmit = function(e) {
+    eventForm.onsubmit = async function(e) {
       e.preventDefault();
       const newEvent = {
         title: eventTitle.value,
         date: eventDate.value,
         time: eventTime.value,
-        desc: eventDesc.value
+        desc: eventDesc.value,
+        owner: myOwnerName
       };
-      events.push(newEvent);
-      localStorage.setItem('dayleeEvents', JSON.stringify(events));
+      familyEvents.push(newEvent);
+      await saveFamilyCalendar(familyEvents);
+      await loadFamilyCalendar();
       eventModalBg.style.display = 'none';
-      renderCalendar(currentMonth, currentYear);
-      showNotification('Event added!');
-      scheduleEventNotifications();
+      showNotification('Event added and shared with your family!');
     };
 
     // --- Day Detail Modal (hourly schedule) ---
@@ -241,28 +255,24 @@
         label.textContent = hourLabel;
         const eventsDiv = document.createElement('div');
         eventsDiv.className = 'hour-events';
-        const hourEvents = events.filter(e => e.date === dateStr && e.time && e.time.startsWith(hourLabel.slice(0,2)));
+        const hourEvents = familyEvents.filter(e => e.date === dateStr && e.time && e.time.startsWith(hourLabel.slice(0,2)));
         if (hourEvents.length > 0) {
           eventsDiv.innerHTML = hourEvents.map(e =>
             `<b>${e.time}</b> ${e.title}<br><span style="color:#64748b;font-size:0.95em;">${e.desc || ''}</span>`
           ).join('<br>');
         }
-
-        // Add button to schedule new event at this hour
         const addBtn = document.createElement('button');
         addBtn.className = 'add-hour-event-btn';
         addBtn.textContent = '+';
         addBtn.title = `Add event at ${hourLabel}`;
         addBtn.onclick = function() {
-          // Prefill modal for this hour
-          dayDetailModalBg.style.display = 'none'; // Close the scheduler modal
+          dayDetailModalBg.style.display = 'none';
           eventModalBg.style.display = 'flex';
           eventTitle.value = '';
           eventDate.value = dateStr;
           eventTime.value = hourLabel.slice(0,2) + ':00';
           eventDesc.value = '';
         };
-
         hourRow.appendChild(label);
         hourRow.appendChild(eventsDiv);
         hourRow.appendChild(addBtn);
@@ -274,7 +284,6 @@
     const tutorialModalBg = document.getElementById('tutorialModalBg');
     const closeTutorialModal = document.getElementById('closeTutorialModal');
     const tutorialGotItBtn = document.getElementById('tutorialGotItBtn');
-
     function showTutorialIfFirstTime() {
       if (!localStorage.getItem('dayleeCalendarTutorialSeen')) {
         tutorialModalBg.style.display = 'flex';
@@ -300,62 +309,28 @@
         notif.style.opacity = '0';
         notif.style.transform = 'translateY(-30px)';
         notif.style.pointerEvents = 'none';
-        setTimeout(() => {
-          notif.style.display = 'none';
-        }, 400);
+        setTimeout(() => { notif.style.display = 'none'; }, 400);
       }, duration);
     }
 
-    // --- Request Notification Permission on first load ---
-    function requestNotificationPermission() {
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
+    // --- Initial Render & Sync ---
+    async function initialLoadAndSync() {
+      const profile = await getProfileAndFamily();
+      if (!profile) return;
+      await loadFamilyCalendar();
+      updateMonthYear();
+      renderCalendar(currentMonth, currentYear);
+      supabase
+        .channel('calendars')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'calendars', filter: `family_id=eq.${myFamilyId}` }, async payload => {
+          await loadFamilyCalendar();
+        })
+        .subscribe();
+      showTutorialIfFirstTime();
     }
-    window.addEventListener('DOMContentLoaded', requestNotificationPermission);
-
-    // --- Schedule Event Notifications ---
-    function scheduleEventNotifications() {
-      if (!('Notification' in window) || Notification.permission !== 'granted') return;
-      // Clear any previous intervals
-      if (window.dayleeNotifInterval) clearInterval(window.dayleeNotifInterval);
-
-      window.dayleeNotifInterval = setInterval(() => {
-        const now = new Date();
-        const nowStr = now.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
-        let notifiedEvents = JSON.parse(localStorage.getItem('dayleeNotifiedEvents') || '[]');
-        events.forEach(e => {
-          if (e.date && e.time) {
-            const eventDateTime = `${e.date}T${e.time}`;
-            // Notify if event is within the next 5 minutes and not already notified
-            const eventTime = new Date(eventDateTime);
-            const diff = (eventTime - now) / 60000; // minutes
-            if (diff >= 0 && diff < 5 && !notifiedEvents.includes(eventDateTime + e.title)) {
-              // Show browser notification
-              new Notification('Daylee Event Reminder', {
-                body: `${e.title}${e.time ? ' at ' + e.time : ''}${e.desc ? '\n' + e.desc : ''}`,
-                icon: '/uploads/images/daylee.png'
-              });
-              // Show in-app notification
-              showNotification(`Upcoming: ${e.title}${e.time ? ' at ' + e.time : ''}`);
-              notifiedEvents.push(eventDateTime + e.title);
-            }
-          }
-        });
-        // Save notified events to avoid duplicate notifications
-        localStorage.setItem('dayleeNotifiedEvents', JSON.stringify(notifiedEvents));
-      }, 60000); // Check every minute
-    }
-
-    // Call this after events are loaded or changed
-    scheduleEventNotifications();
-
-    // --- Initial Render ---
-    updateMonthYear();
-    renderCalendar(currentMonth, currentYear);
-    window.addEventListener('DOMContentLoaded', showTutorialIfFirstTime);
+    window.addEventListener('DOMContentLoaded', initialLoadAndSync);
   </script>
-    <footer>
+  <footer>
     Daylee -  Organize your life, your way.
   </footer>
 </body>
