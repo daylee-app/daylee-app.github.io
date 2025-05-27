@@ -1,266 +1,239 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Daylee Calendar</title>
-  <meta name="description" content="Your Daylee calendar – see your events, weather, and more.">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
-  <link href="/css/calendar.css" rel="stylesheet">
-  <link href="/css/main.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f4f4f4;
+      color: #1f2937;
+    }
+    .calendar {
+      max-width: 900px;
+      margin: auto;
+      padding: 1rem;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .day {
+      background: #fff;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 0 4px rgba(0,0,0,0.1);
+      cursor: pointer;
+      position: relative;
+    }
+    .day:hover {
+      background: #e0f2fe;
+    }
+    .day .date {
+      font-weight: bold;
+    }
+    .day .events {
+      font-size: 0.85em;
+      margin-top: 0.25rem;
+      color: #2563eb;
+    }
+    .modal-bg, .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-bg {
+      background: rgba(0,0,0,0.5);
+    }
+    .modal {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    .modal input, .modal textarea {
+      width: 100%;
+      margin: 0.25rem 0;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 0.25rem;
+    }
+    .modal button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+    .hour-row {
+      display: flex;
+      align-items: center;
+      padding: 0.25rem 0;
+    }
+    .hour-label {
+      width: 4rem;
+      font-weight: bold;
+    }
+    .hour-events {
+      flex: 1;
+      padding-left: 0.5rem;
+    }
+    .add-hour-event-btn {
+      background: none;
+      border: none;
+      color: #2563eb;
+      font-size: 1.25rem;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <a href="/dashboard" id="top-link">< Dashboard</a>
-  <div class="calendar-header">
-    <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="calendar-logo">
-    <div class="calendar-title">Family Calendar</div>
-    <div class="calendar-subtitle">See your family's events, weather, and more</div>
-  </div>
-  <div class="calendar-container">
-    <button class="add-event-btn" id="addEventBtn" title="Add Event">+</button>
-    <div class="calendar-controls">
-      <button id="prevMonth">&lt;</button>
-      <span id="monthYear"></span>
-      <button id="nextMonth">&gt;</button>
+  <div class="calendar">
+    <div class="header">
+      <h1 id="monthYear"></h1>
+      <button onclick="openAddModal()">+ Add Event</button>
     </div>
-    <div class="calendar-grid" id="calendarGrid"></div>
+    <div class="days" id="days"></div>
   </div>
-  <!-- Modal for adding event -->
-  <div class="modal-bg" id="eventModalBg" style="display:none;">
-    <div class="modal">
-      <button class="modal-close" id="closeEventModal">&times;</button>
-      <div class="modal-title">Add Event</div>
-      <form class="modal-form" id="eventForm">
-        <input type="text" id="eventTitle" placeholder="Event Title" required>
-        <input type="date" id="eventDate" required>
-        <input type="time" id="eventTime">
-        <textarea id="eventDesc" placeholder="Description"></textarea>
-        <button type="submit">Add Event</button>
-      </form>
-    </div>
-  </div>
-  <!-- Modal for day detail (hourly schedule) -->
-  <div class="modal-bg" id="dayDetailModalBg" style="display:none;">
-    <div class="day-detail-modal">
-      <button class="modal-close" id="closeDayDetailModal">&times;</button>
-      <div class="day-detail-title" id="dayDetailTitle"></div>
-      <div class="hour-schedule" id="hourSchedule"></div>
-    </div>
-  </div>
-  <!-- Tutorial Modal -->
-  <div class="modal-bg" id="tutorialModalBg" style="display:none; z-index:10000;">
-    <div class="modal">
-      <button class="modal-close" id="closeTutorialModal">&times;</button>
-      <div class="modal-title">Welcome to Daylee Calendar!</div>
-      <div style="font-size:1.05rem; color:#22223b; margin-bottom:1.2rem;">
-        <ul style="text-align:left; padding-left:1.2em; margin:0;">
-          <li><b>Navigate months</b> with the <span style="color:#2563eb;">&lt;</span> and <span style="color:#2563eb;">&gt;</span> buttons.</li>
-          <li><b>Add events</b> with the <span style="color:#06b6d4;">+</span> button in the top right or next to any hour.</li>
-          <li><b>Click a day</b> to view and schedule events by the hour.</li>
-          <li>Your events are shared with your family automatically.</li>
-        </ul>
-        <div style="margin-top:1.2em; color:#64748b; font-size:0.98em;">
-          You can always revisit this tutorial from the menu.
-        </div>
-      </div>
-      <button id="tutorialGotItBtn" class="modal-form" style="margin:0 auto; width:70%;">Got it!</button>
-    </div>
-  </div>
-  <!-- Notification Container -->
-  <div id="notification" style="display:none;position:fixed;top:1.2rem;right:1.2rem;z-index:12000;min-width:220px;max-width:90vw;padding:1rem 1.5rem;background:linear-gradient(90deg,#2563eb 0%,#06b6d4 100%);color:#fff;font-size:1.1rem;font-weight:600;border-radius:1em;box-shadow:0 4px 24px #2563eb33;transition:opacity 0.3s,transform 0.3s;opacity:0;pointer-events:none;"></div>
-  <script>
-    // --- Supabase Setup ---
-    const SUPABASE_URL = "https://nmgikevqydvvjdgpdhjb.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tZ2lrZXZxeWR2dmpkZ3BkaGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNzI4ODcsImV4cCI6MjA2Mzk0ODg4N30.1zPr-aOlkETD4FhuwhneHoXavSE6N0uNu-awxsidAZQ";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- State ---
-    let myProfile = null, myFamilyId = null, myOwnerName = null, myOwnerEmail = null;
-    let familyEvents = [];
-    const calendarGrid = document.getElementById('calendarGrid');
+  <!-- Event Modal -->
+  <div class="modal-bg" id="eventModalBg">
+    <div class="modal">
+      <h2>Add Event</h2>
+      <input id="eventTitle" placeholder="Event Title" />
+      <input id="eventDate" type="date" />
+      <input id="eventTime" type="time" />
+      <textarea id="eventDesc" placeholder="Description"></textarea>
+      <button onclick="saveEvent()">Save</button>
+    </div>
+  </div>
+
+  <!-- Day Detail Modal -->
+  <div class="modal-bg" id="dayDetailModalBg">
+    <div class="modal">
+      <h2 id="dayDetailTitle"></h2>
+      <div id="hourSchedule"></div>
+      <button onclick="closeDayDetail()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const daysEl = document.getElementById('days');
     const monthYear = document.getElementById('monthYear');
-    const prevMonthBtn = document.getElementById('prevMonth');
-    const nextMonthBtn = document.getElementById('nextMonth');
-    const addEventBtn = document.getElementById('addEventBtn');
     const eventModalBg = document.getElementById('eventModalBg');
-    const closeEventModal = document.getElementById('closeEventModal');
-    const eventForm = document.getElementById('eventForm');
+    const dayDetailModalBg = document.getElementById('dayDetailModalBg');
+    const hourSchedule = document.getElementById('hourSchedule');
+    const dayDetailTitle = document.getElementById('dayDetailTitle');
     const eventTitle = document.getElementById('eventTitle');
     const eventDate = document.getElementById('eventDate');
     const eventTime = document.getElementById('eventTime');
     const eventDesc = document.getElementById('eventDesc');
-    const dayDetailModalBg = document.getElementById('dayDetailModalBg');
-    const closeDayDetailModal = document.getElementById('closeDayDetailModal');
-    const dayDetailTitle = document.getElementById('dayDetailTitle');
-    const hourSchedule = document.getElementById('hourSchedule');
-    let today = new Date();
-    let currentMonth = today.getMonth();
-    let currentYear = today.getFullYear();
-    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    // --- Profile & Family ---
-    async function getProfileAndFamily() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { showNotification("Please sign in."); return null; }
-      const { data: profile } = await supabase.from('profiles').select('*').eq('email', user.email).single();
-      if (!profile) { showNotification("No profile found."); return null; }
-      myProfile = profile;
-      myFamilyId = profile.family_id;
-      myOwnerName = profile.name;
-      myOwnerEmail = profile.email;
-      return profile;
-    }
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const familyEvents = [];
 
-    // --- Load Family Calendar ---
-    async function loadFamilyCalendar() {
-      if (!myFamilyId) return;
-      const { data: cal } = await supabase.from('calendars').select('*').eq('family_id', myFamilyId).single();
-      familyEvents = [];
-      if (cal && cal.events) {
-        try { familyEvents = Array.isArray(cal.events) ? cal.events : JSON.parse(cal.events); } catch { familyEvents = []; }
-      }
-      renderCalendar(currentMonth, currentYear);
-    }
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-    // --- Save Family Calendar to Supabase ---
-    async function saveFamilyCalendar(events) {
-      if (!myFamilyId) return;
-      const { error } = await supabase.from('calendars').upsert([{
-        family_id: myFamilyId,
-        events: events
-      }], { onConflict: ['family_id'] });
-      if (error) {
-        console.error('Supabase upsert error:', error);
-        showNotification('Failed to save event: ' + error.message);
-      }
-    }
-
-    // --- Calendar Rendering ---
     function renderCalendar(month, year) {
-      calendarGrid.innerHTML = '';
-      daysOfWeek.forEach(day => {
-        const dayDiv = document.createElement('div');
-        dayDiv.className = 'calendar-day';
-        dayDiv.textContent = day;
-        calendarGrid.appendChild(dayDiv);
-      });
+      daysEl.innerHTML = '';
       const firstDay = new Date(year, month, 1).getDay();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const totalDays = new Date(year, month + 1, 0).getDate();
+      monthYear.textContent = `${year} – ${new Date(year, month).toLocaleString('default', { month: 'long' })}`;
+
       for (let i = 0; i < firstDay; i++) {
-        const blank = document.createElement('div');
-        blank.className = 'calendar-cell';
-        blank.style.background = 'transparent';
-        blank.style.cursor = 'default';
-        calendarGrid.appendChild(blank);
+        daysEl.innerHTML += `<div></div>`;
       }
-      for (let day = 1; day <= daysInMonth; day++) {
-        const cell = document.createElement('div');
-        cell.className = 'calendar-cell';
-        const cellDate = new Date(year, month, day);
-        const cellDateStr = cellDate.toISOString().slice(0, 10);
-        if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
-          cell.classList.add('today');
-        }
-        const dayNum = document.createElement('div');
-        dayNum.className = 'calendar-day-number';
-        dayNum.textContent = day;
-        cell.appendChild(dayNum);
-        const dayEvents = familyEvents.filter(e => e.date === cellDateStr);
-        if (dayEvents.length > 0) {
-          const eventsDiv = document.createElement('div');
-          eventsDiv.className = 'calendar-events';
-          eventsDiv.innerHTML = dayEvents.map(e =>
-            (e.time ? `<b>${e.time}</b> ` : '') + e.title
-          ).join('<br>');
-          cell.appendChild(eventsDiv);
-        }
-        cell.addEventListener('click', () => openDayDetail(cellDateStr, day, month, year));
-        calendarGrid.appendChild(cell);
+
+      for (let d = 1; d <= totalDays; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayBox = document.createElement('div');
+        dayBox.className = 'day';
+        dayBox.onclick = () => openDayDetail(d, month, year);
+
+        const dateLabel = document.createElement('div');
+        dateLabel.className = 'date';
+        dateLabel.textContent = d;
+
+        const eventsDiv = document.createElement('div');
+        eventsDiv.className = 'events';
+        const dayEvents = familyEvents.filter(e => e.date === dateStr);
+        eventsDiv.innerHTML = dayEvents.map(e =>
+          (e.time ? `<b>${e.time}</b> ` : '') + e.title
+        ).join('<br>');
+
+        dayBox.appendChild(dateLabel);
+        dayBox.appendChild(eventsDiv);
+        daysEl.appendChild(dayBox);
       }
     }
 
-    function updateMonthYear() {
-      const date = new Date(currentYear, currentMonth);
-      const options = { month: 'long', year: 'numeric' };
-      monthYear.textContent = date.toLocaleDateString(undefined, options);
-    }
-
-    prevMonthBtn.onclick = function() {
-      currentMonth--;
-      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-      updateMonthYear();
-      renderCalendar(currentMonth, currentYear);
-    };
-    nextMonthBtn.onclick = function() {
-      currentMonth++;
-      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-      updateMonthYear();
-      renderCalendar(currentMonth, currentYear);
-    };
-
-    // --- Add Event Modal ---
-    addEventBtn.onclick = function() {
+    function openAddModal() {
       eventModalBg.style.display = 'flex';
       eventTitle.value = '';
       eventDate.value = '';
       eventTime.value = '';
       eventDesc.value = '';
-    };
-    closeEventModal.onclick = function() {
-      eventModalBg.style.display = 'none';
-    };
-    eventModalBg.onclick = function(e) {
-      if (e.target === eventModalBg) eventModalBg.style.display = 'none';
-    };
+    }
 
-    eventForm.onsubmit = async function(e) {
-      e.preventDefault();
-      const newEvent = {
+    function saveEvent() {
+      const event = {
         title: eventTitle.value,
         date: eventDate.value,
         time: eventTime.value,
-        desc: eventDesc.value,
-        owner: myOwnerName
+        desc: eventDesc.value
       };
-      familyEvents.push(newEvent);
-      await saveFamilyCalendar(familyEvents);
-      await loadFamilyCalendar();
+      familyEvents.push(event);
       eventModalBg.style.display = 'none';
-      showNotification('Event added and shared with your family!');
-    };
+      renderCalendar(currentMonth, currentYear);
+    }
 
-    // --- Day Detail Modal (hourly schedule) ---
-    function openDayDetail(dateStr, day, month, year) {
+    function openDayDetail(day, month, year) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       dayDetailModalBg.style.display = 'flex';
       dayDetailTitle.textContent = `${daysOfWeek[new Date(year, month, day).getDay()]}, ${month + 1}/${day}/${year}`;
       renderHourSchedule(dateStr);
     }
-    closeDayDetailModal.onclick = function() {
-      dayDetailModalBg.style.display = 'none';
-    };
-    dayDetailModalBg.onclick = function(e) {
-      if (e.target === dayDetailModalBg) dayDetailModalBg.style.display = 'none';
-    };
 
     function renderHourSchedule(dateStr) {
       hourSchedule.innerHTML = '';
       for (let h = 0; h < 24; h++) {
-        const hourLabel = `${h.toString().padStart(2, '0')}:00`;
+        const hourLabel = h.toString().padStart(2, '0') + ':00';
         const hourRow = document.createElement('div');
         hourRow.className = 'hour-row';
+
         const label = document.createElement('div');
         label.className = 'hour-label';
         label.textContent = hourLabel;
+
         const eventsDiv = document.createElement('div');
         eventsDiv.className = 'hour-events';
-        const hourEvents = familyEvents.filter(e => e.date === dateStr && e.time && e.time.startsWith(hourLabel.slice(0,2)));
+
+        const hourEvents = familyEvents.filter(e => e.date === dateStr && e.time && e.time.startsWith(hourLabel.slice(0, 2)));
         if (hourEvents.length > 0) {
           eventsDiv.innerHTML = hourEvents.map(e =>
             `<b>${e.time}</b> ${e.title}<br><span style="color:#64748b;font-size:0.95em;">${e.desc || ''}</span>`
           ).join('<br>');
         }
+
         const addBtn = document.createElement('button');
         addBtn.className = 'add-hour-event-btn';
         addBtn.textContent = '+';
@@ -270,9 +243,10 @@
           eventModalBg.style.display = 'flex';
           eventTitle.value = '';
           eventDate.value = dateStr;
-          eventTime.value = hourLabel.slice(0,2) + ':00';
+          eventTime.value = hourLabel.slice(0, 2) + ':00';
           eventDesc.value = '';
         };
+
         hourRow.appendChild(label);
         hourRow.appendChild(eventsDiv);
         hourRow.appendChild(addBtn);
@@ -280,58 +254,11 @@
       }
     }
 
-    // --- Tutorial Modal Logic ---
-    const tutorialModalBg = document.getElementById('tutorialModalBg');
-    const closeTutorialModal = document.getElementById('closeTutorialModal');
-    const tutorialGotItBtn = document.getElementById('tutorialGotItBtn');
-    function showTutorialIfFirstTime() {
-      if (!localStorage.getItem('dayleeCalendarTutorialSeen')) {
-        tutorialModalBg.style.display = 'flex';
-        localStorage.setItem('dayleeCalendarTutorialSeen', 'yes');
-      }
-    }
-    closeTutorialModal.onclick = function() {
-      tutorialModalBg.style.display = 'none';
-    };
-    tutorialGotItBtn.onclick = function() {
-      tutorialModalBg.style.display = 'none';
-    };
-
-    // --- Notification Logic ---
-    function showNotification(msg, duration = 3500) {
-      const notif = document.getElementById('notification');
-      notif.textContent = msg;
-      notif.style.display = 'block';
-      notif.style.opacity = '1';
-      notif.style.transform = 'translateY(0)';
-      notif.style.pointerEvents = 'auto';
-      setTimeout(() => {
-        notif.style.opacity = '0';
-        notif.style.transform = 'translateY(-30px)';
-        notif.style.pointerEvents = 'none';
-        setTimeout(() => { notif.style.display = 'none'; }, 400);
-      }, duration);
+    function closeDayDetail() {
+      dayDetailModalBg.style.display = 'none';
     }
 
-    // --- Initial Render & Sync ---
-    async function initialLoadAndSync() {
-      const profile = await getProfileAndFamily();
-      if (!profile) return;
-      await loadFamilyCalendar();
-      updateMonthYear();
-      renderCalendar(currentMonth, currentYear);
-      supabase
-        .channel('calendars')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'calendars', filter: `family_id=eq.${myFamilyId}` }, async payload => {
-          await loadFamilyCalendar();
-        })
-        .subscribe();
-      showTutorialIfFirstTime();
-    }
-    window.addEventListener('DOMContentLoaded', initialLoadAndSync);
+    renderCalendar(currentMonth, currentYear);
   </script>
-  <footer>
-    Daylee -  Organize your life, your way.
-  </footer>
 </body>
 </html>
