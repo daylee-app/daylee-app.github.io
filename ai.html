@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Calendar Assistant</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 500px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 24px; }
+    h1 { text-align: center; }
+    #chat { height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 12px; background: #fafafa; margin-bottom: 16px; }
+    .user { color: #1976d2; margin-bottom: 8px; }
+    .ai { color: #388e3c; margin-bottom: 8px; }
+    #input-area { display: flex; gap: 8px; }
+    #user-input { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+    #send-btn { padding: 8px 16px; border: none; border-radius: 4px; background: #1976d2; color: #fff; cursor: pointer; }
+    #send-btn:hover { background: #1565c0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AI Calendar Assistant</h1>
+    <div id="chat"></div>
+    <form id="input-area">
+      <input type="text" id="user-input" placeholder="Ask about your calendar..." autocomplete="off" required />
+      <button type="submit" id="send-btn">Send</button>
+    </form>
+  </div>
+  <script>
+    // --- Calendar Storage Logic ---
+    // Events are stored as { date: 'YYYY-MM-DD', time: 'HH:MM', title, desc }
+    function loadEvents() {
+      return JSON.parse(localStorage.getItem('dayleeEvents') || '[]');
+    }
+    function saveEvents(events) {
+      localStorage.setItem('dayleeEvents', JSON.stringify(events));
+    }
+
+    // Helper: get next date for a weekday name (e.g. "monday")
+    function getNextDateForWeekday(weekday) {
+      const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+      const today = new Date();
+      const todayIdx = today.getDay();
+      const targetIdx = days.indexOf(weekday.toLowerCase());
+      let diff = targetIdx - todayIdx;
+      if (diff < 0) diff += 7;
+      if (diff === 0) diff = 7; // always next week if today
+      const result = new Date(today);
+      result.setDate(today.getDate() + diff);
+      return result.toISOString().slice(0,10);
+    }
+
+    // Helper: get all events for a weekday name
+    function getEventsForWeekday(weekday) {
+      const events = loadEvents();
+      // Find all events for the next occurrence of this weekday
+      const date = getNextDateForWeekday(weekday);
+      return events.filter(e => e.date === date);
+    }
+
+    // Helper: format events for a day
+    function formatEventsForDate(date, weekday) {
+      const events = loadEvents().filter(e => e.date === date);
+      if (!events.length) return "No events scheduled for " + weekday + ".";
+      return "Events for " + weekday + ":<br>" + events.map(e => "- " + (e.time || "All day") + ": " + e.title).join("<br>");
+    }
+
+    // Helper: format all events
+    function formatAllEvents() {
+      const events = loadEvents();
+      if (!events.length) return "No events scheduled.";
+      // Group by date
+      const grouped = {};
+      events.forEach(e => {
+        if (!grouped[e.date]) grouped[e.date] = [];
+        grouped[e.date].push(e);
+      });
+      let out = "";
+      Object.keys(grouped).sort().forEach(date => {
+        const d = new Date(date);
+        const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+        out += `<b>${weekday} (${date}):</b><br>`;
+        out += grouped[date].map(e => "- " + (e.time || "All day") + ": " + e.title).join("<br>") + "<br>";
+      });
+      return out;
+    }
+
+    // Parse user input for intent and details
+    function parseInput(input) {
+      input = input.toLowerCase();
+      // Add event: "add a dentist appointment at 3:00 on monday"
+      let addMatch = input.match(/add (?:an?|the)?\s*(.*?)\s*(?:appointment|event)?\s*(?:at|@)?\s*([0-9:apm ]+)?\s*(?:on)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/);
+      if (addMatch) {
+        return {
+          intent: 'add',
+          title: addMatch[1] ? addMatch[1].trim() : 'Event',
+          time: addMatch[2] ? addMatch[2].trim() : '',
+          day: addMatch[3]
+        };
+      }
+      // Query: handle many ways to ask about a day
+      // Examples: "can i hang out with friends on tuesday", "do i have anything on friday", "what's on monday", "am i free thursday", "is there anything on saturday"
+      let queryMatch = input.match(
+        /(can i|do i|am i|is there|what's|what is|show|list|anything|free|available|busy|plans?|scheduled?|events?).*?(on|for)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/
+      );
+      if (queryMatch) {
+        return {
+          intent: 'query',
+          day: queryMatch[3]
+        };
+      }
+      // List all events
+      if (input.match(/all events|everything|full calendar|show calendar|list all|what's my week|what's my schedule/)) {
+        return { intent: 'list' };
+      }
+      return { intent: 'unknown' };
+    }
+
+    // AI response logic
+    function aiRespond(input) {
+      const parsed = parseInput(input);
+      if (parsed.intent === 'add') {
+        // Add event to next occurrence of the weekday
+        const date = getNextDateForWeekday(parsed.day);
+        const events = loadEvents();
+        events.push({
+          title: parsed.title,
+          date: date,
+          time: parsed.time,
+          desc: ''
+        });
+        saveEvents(events);
+        return `Added "${parsed.title}"${parsed.time ? ' at ' + parsed.time : ''} on ${parsed.day} (${date}).`;
+      }
+      if (parsed.intent === 'query') {
+        const date = getNextDateForWeekday(parsed.day);
+        return formatEventsForDate(date, parsed.day);
+      }
+      if (parsed.intent === 'list') {
+        return formatAllEvents();
+      }
+      return "Sorry, I didn't understand. Try asking to add or check events, e.g. 'Add a dentist appointment at 3:00 on Monday' or 'Can I hang out with friends on Tuesday?'.";
+    }
+
+    // UI logic
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('input-area');
+    const userInput = document.getElementById('user-input');
+
+    function appendMessage(sender, text) {
+      const div = document.createElement('div');
+      div.className = sender;
+      div.innerHTML = `<strong>${sender === 'user' ? 'You' : 'AI'}:</strong> ${text}`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const input = userInput.value.trim();
+      if (!input) return;
+      appendMessage('user', input);
+      const response = aiRespond(input);
+      appendMessage('ai', response);
+      userInput.value = '';
+    });
+
+    // Greet on load
+    appendMessage('ai', "Hi! Ask me about your calendar. For example: <br>- Add a dentist appointment at 3:00 on Monday<br>- Can I hang out with friends on Tuesday?");
+  </script>
+</body>
+</html>
