@@ -10,12 +10,45 @@
   <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
 </head>
 <body>
+<div class="loader"></div>
+<script>
+  // Show loader for 2 seconds, then hide
+  window.addEventListener('DOMContentLoaded', function() {
+    const loader = document.querySelector('.loader');
+    if (loader) {
+      loader.style.display = 'block';
+      setTimeout(() => {
+        loader.style.opacity = '0';
+        loader.style.pointerEvents = 'none';
+        setTimeout(() => loader.style.display = 'none', 400);
+      }, 3000);
+    }
+  });
+</script>
   <header>
      <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
      <br>
     <span class="logo">daylee</span>
     <div class="subtitle">A calendar app, reimagined.<br>Smarter, simpler, and more connected to your day.</div>
-    <a href="#get-started"><button class="cta-btn">Get Started</button></a>
+    <a href="#get-started">
+    <button class="cssbuttons-io-button">
+  Get started
+  <div class="icon">
+    <svg
+      height="24"
+      width="24"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M0 0h24v24H0z" fill="none"></path>
+      <path
+        d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z"
+        fill="currentColor"
+      ></path>
+    </svg>
+  </div>
+</button>
+</a>
   </header>
   <main>
     <section class="features">
