@@ -14,10 +14,10 @@
 <body>
   <a href="/dashboard" id="top-link" style="color:#2563eb;text-decoration:none;font-weight:600;font-size:1.1em;display:block;margin:1.5em 0 0 2em;">&lt; Dashboard</a>
   <header>
-     <img src="/uploads/images/daylee.png" alt="Daylee Logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" class="logo" />
-     <br>
-    <span class="logo">daylee</span>
-    <div class="subtitle">A calendar app, reimagined.<br>Smarter, simpler, and more connected to your day.</div>
+    <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
+    <br>
+    <span class="calendar-title">Family Calendar</span>
+    <div class="calendar-subtitle">A powerful, shared calendar for your whole family</div>
   </header>
   <div class="calendar-container" style="position:relative;">
     <button class="add-event-btn" id="addEventBtn" title="Add Event">+</button>
@@ -62,14 +62,7 @@
         <label>Reminder
           <input type="text" id="eventReminder" placeholder="e.g. 10m, 1h">
         </label>
-        <div id="eventForDiv" style="margin-bottom:0.7em;">
-          <label style="font-size:0.97em;">Who is this for?</label>
-          <div id="eventForList"></div>
-          <label style="font-size:0.97em;">
-            <input type="checkbox" id="eventOnlyFor" checked>
-            Only show on selected members' calendars
-          </label>
-        </div>
+        <!-- Removed "Who is this for?" section -->
         <button type="submit" style="margin-top:1em;">Save Event</button>
       </form>
     </div>
@@ -105,9 +98,7 @@
     const eventPrivate = document.getElementById('eventPrivate');
     const eventReminder = document.getElementById('eventReminder');
     const eventLocation = document.getElementById('eventLocation');
-    const eventForDiv = document.getElementById('eventForDiv');
-    const eventForList = document.getElementById('eventForList');
-    const eventOnlyFor = document.getElementById('eventOnlyFor');
+    // Removed eventForList and familyMembers logic
     let today = new Date();
     let currentMonth = today.getMonth();
     let currentYear = today.getFullYear();
@@ -125,9 +116,7 @@
       // Get family code for invites
       const { data: fam } = await supabase.from('families').select('*').eq('id', familyId).single();
       familyCode = fam ? fam.code : null;
-      // Get family members
-      const { data: members } = await supabase.from('profiles').select('id,full_name').eq('family_id', familyId);
-      familyMembers = members || [];
+      // No need to get family members
     }
 
     // --- Load Family Events ---
@@ -174,14 +163,8 @@
         if (cellDateStr === new Date().toISOString().slice(0, 10)) {
           dayDiv.classList.add('today');
         }
-        // Only show events for this user if onlyFor is set, or show all if not
-        const dayEvents = familyEvents.filter(e =>
-          e.date === cellDateStr &&
-          (
-            !e.onlyFor ||
-            (Array.isArray(e.for) && e.for.includes(userProfile.id))
-          )
-        );
+        // Show all events for the family
+        const dayEvents = familyEvents.filter(e => e.date === cellDateStr);
         dayDiv.innerHTML = `<div class="calendar-day-num">${day}</div>`;
         dayEvents.forEach((e, idx) => {
           const evDiv = document.createElement('div');
@@ -232,8 +215,6 @@
       eventPrivate.checked = false;
       eventReminder.value = '';
       eventLocation.value = '';
-      renderEventForList([userProfile.id]);
-      eventOnlyFor.checked = true;
     };
     closeEventModal.onclick = function() {
       eventModalBg.style.display = 'none';
@@ -241,17 +222,6 @@
     eventModalBg.onclick = function(e) {
       if (e.target === eventModalBg) eventModalBg.style.display = 'none';
     };
-
-    function renderEventForList(selected) {
-      eventForList.innerHTML = '';
-      familyMembers.forEach(m => {
-        const id = 'eventFor_' + m.id;
-        const label = document.createElement('label');
-        label.style.marginRight = '1em';
-        label.innerHTML = `<input type="checkbox" id="${id}" value="${m.id}" ${selected.includes(m.id) ? 'checked' : ''}> ${m.full_name || 'Unknown'}`;
-        eventForList.appendChild(label);
-      });
-    }
 
     function editEvent(idx) {
       editingEventIndex = idx;
@@ -267,8 +237,6 @@
       eventPrivate.checked = !!e.private;
       eventReminder.value = e.reminder || '';
       eventLocation.value = e.location || '';
-      renderEventForList(e.for || []);
-      eventOnlyFor.checked = !!e.onlyFor;
     }
 
     function editEventForDay(dateStr) {
@@ -284,8 +252,6 @@
       eventPrivate.checked = false;
       eventReminder.value = '';
       eventLocation.value = '';
-      renderEventForList([userProfile.id]);
-      eventOnlyFor.checked = true;
     }
 
     window.editEvent = editEvent;
@@ -300,11 +266,6 @@
 
     eventForm.onsubmit = async function(e) {
       e.preventDefault();
-      const selectedFor = Array.from(eventForList.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
-      if (selectedFor.length === 0) {
-        alert("Please select at least one family member.");
-        return;
-      }
       const newEvent = {
         title: eventTitle.value,
         date: eventDate.value,
@@ -314,9 +275,7 @@
         category: eventCategory.value,
         private: eventPrivate.checked,
         reminder: eventReminder.value,
-        location: eventLocation.value,
-        for: selectedFor,
-        onlyFor: eventOnlyFor.checked
+        location: eventLocation.value
       };
       if (editingEventIndex !== null) {
         familyEvents[editingEventIndex] = newEvent;
