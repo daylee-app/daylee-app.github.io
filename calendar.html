@@ -34,24 +34,43 @@
       <button class="modal-close" id="closeEventModal">&times;</button>
       <div class="modal-title" id="eventModalTitle">Add Event</div>
       <form class="modal-form" id="eventForm">
-        <input type="text" id="eventTitle" placeholder="Event Title" required>
-        <input type="date" id="eventDate" required>
-        <input type="time" id="eventTime">
-        <input type="text" id="eventLocation" placeholder="Location (optional)">
-        <select id="eventCategory">
-          <option value="">Category (optional)</option>
-          <option value="Birthday">Birthday</option>
-          <option value="Appointment">Appointment</option>
-          <option value="School">School</option>
-          <option value="Work">Work</option>
-          <option value="Holiday">Holiday</option>
-          <option value="Other">Other</option>
-        </select>
-        <input type="color" id="eventColor" value="#2563eb" title="Event Color">
-        <label style="font-size:0.97em;"><input type="checkbox" id="eventPrivate"> Private</label>
-        <label style="font-size:0.97em;">Reminder: <input type="number" id="eventReminder" min="0" max="1440" step="5" style="width:5em;"> min before</label>
-        <textarea id="eventDesc" placeholder="Description"></textarea>
-        <button type="submit">Save Event</button>
+        <label>Title
+          <input type="text" id="eventTitle" required maxlength="64">
+        </label>
+        <label>Date
+          <input type="date" id="eventDate" required>
+        </label>
+        <label>Time
+          <input type="time" id="eventTime">
+        </label>
+        <label>Description
+          <textarea id="eventDesc" maxlength="200"></textarea>
+        </label>
+        <label>Location
+          <input type="text" id="eventLocation" maxlength="100">
+        </label>
+        <label>Color
+          <input type="color" id="eventColor" value="#2563eb">
+        </label>
+        <label>Category
+          <input type="text" id="eventCategory" maxlength="32">
+        </label>
+        <label>
+          <input type="checkbox" id="eventPrivate">
+          Private (only you)
+        </label>
+        <label>Reminder
+          <input type="text" id="eventReminder" placeholder="e.g. 10m, 1h">
+        </label>
+        <div id="eventForDiv" style="margin-bottom:0.7em;">
+          <label style="font-size:0.97em;">Who is this for?</label>
+          <div id="eventForList"></div>
+          <label style="font-size:0.97em;">
+            <input type="checkbox" id="eventOnlyFor" checked>
+            Only show on selected members' calendars
+          </label>
+        </div>
+        <button type="submit" style="margin-top:1em;">Save Event</button>
       </form>
     </div>
   </div>
@@ -66,6 +85,7 @@
     // --- State ---
     let userProfile = null, familyId = null, familyRole = null, familyCode = null;
     let familyEvents = [];
+    let familyMembers = [];
     let editingEventIndex = null;
     const calendarGrid = document.getElementById('calendarGrid');
     const monthYear = document.getElementById('monthYear');
@@ -85,6 +105,9 @@
     const eventPrivate = document.getElementById('eventPrivate');
     const eventReminder = document.getElementById('eventReminder');
     const eventLocation = document.getElementById('eventLocation');
+    const eventForDiv = document.getElementById('eventForDiv');
+    const eventForList = document.getElementById('eventForList');
+    const eventOnlyFor = document.getElementById('eventOnlyFor');
     let today = new Date();
     let currentMonth = today.getMonth();
     let currentYear = today.getFullYear();
@@ -102,6 +125,9 @@
       // Get family code for invites
       const { data: fam } = await supabase.from('families').select('*').eq('id', familyId).single();
       familyCode = fam ? fam.code : null;
+      // Get family members
+      const { data: members } = await supabase.from('profiles').select('id,full_name').eq('family_id', familyId);
+      familyMembers = members || [];
     }
 
     // --- Load Family Events ---
@@ -124,57 +150,52 @@
     // --- Calendar Rendering ---
     function renderCalendar(month, year) {
       calendarGrid.innerHTML = '';
+      // Days of week header
       daysOfWeek.forEach(day => {
         const dayDiv = document.createElement('div');
-        dayDiv.className = 'calendar-day';
+        dayDiv.className = 'calendar-day-header';
         dayDiv.textContent = day;
         calendarGrid.appendChild(dayDiv);
       });
       const firstDay = new Date(year, month, 1).getDay();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
+      // Empty cells before first day
       for (let i = 0; i < firstDay; i++) {
-        const blank = document.createElement('div');
-        blank.className = 'calendar-cell';
-        blank.style.background = 'transparent';
-        blank.style.cursor = 'default';
-        calendarGrid.appendChild(blank);
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'calendar-day empty';
+        calendarGrid.appendChild(emptyDiv);
       }
+      // Days
       for (let day = 1; day <= daysInMonth; day++) {
-        const cell = document.createElement('div');
-        cell.className = 'calendar-cell';
         const cellDate = new Date(year, month, day);
         const cellDateStr = cellDate.toISOString().slice(0, 10);
-        if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
-          cell.classList.add('today');
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'calendar-day';
+        if (cellDateStr === new Date().toISOString().slice(0, 10)) {
+          dayDiv.classList.add('today');
         }
-        const dayNum = document.createElement('div');
-        dayNum.className = 'calendar-day-number';
-        dayNum.textContent = day;
-        cell.appendChild(dayNum);
-        const dayEvents = familyEvents.filter(e => e.date === cellDateStr);
-        if (dayEvents.length > 0) {
-          const eventsDiv = document.createElement('div');
-          eventsDiv.className = 'calendar-events';
-          dayEvents.forEach((e, idx) => {
-            const ev = document.createElement('div');
-            ev.className = 'calendar-event';
-            ev.innerHTML =
-              `<span class="event-color" style="background:${e.color || '#2563eb'}"></span>` +
-              (e.time ? `<b>${e.time}</b> ` : '') +
-              `<span>${e.title}</span>` +
-              (e.category ? `<span class="event-category">${e.category}</span>` : '') +
-              (e.private ? `<span class="event-private">Private</span>` : '') +
-              (e.reminder ? `<span class="event-reminder">🔔${e.reminder}m</span>` : '') +
-              (e.location ? `<span class="event-location">📍${e.location}</span>` : '') +
-              (e.desc ? `<div class="event-desc">${e.desc}</div>` : '');
-            ev.innerHTML += `<button class="event-edit-btn" title="Edit" onclick="event.stopPropagation();editEvent(${idx});">✏️</button>`;
-            ev.innerHTML += `<button class="event-delete-btn" title="Delete" onclick="event.stopPropagation();deleteEvent(${idx});">🗑️</button>`;
-            eventsDiv.appendChild(ev);
-          });
-          cell.appendChild(eventsDiv);
-        }
-        cell.addEventListener('click', () => editEventForDay(cellDateStr));
-        calendarGrid.appendChild(cell);
+        // Only show events for this user if onlyFor is set, or show all if not
+        const dayEvents = familyEvents.filter(e =>
+          e.date === cellDateStr &&
+          (
+            !e.onlyFor ||
+            (Array.isArray(e.for) && e.for.includes(userProfile.id))
+          )
+        );
+        dayDiv.innerHTML = `<div class="calendar-day-num">${day}</div>`;
+        dayEvents.forEach((e, idx) => {
+          const evDiv = document.createElement('div');
+          evDiv.className = 'calendar-event';
+          evDiv.style.background = e.color || '#2563eb';
+          evDiv.title = (e.title || '') + (e.location ? ` @ ${e.location}` : '');
+          evDiv.innerHTML = `<span>${e.title || ''}</span>${e.location ? `<span style="font-size:0.9em;color:#fff8;"> @ ${e.location}</span>` : ''}`;
+          evDiv.onclick = () => editEvent(familyEvents.indexOf(e));
+          dayDiv.appendChild(evDiv);
+        });
+        dayDiv.onclick = (ev) => {
+          if (ev.target === dayDiv) editEventForDay(cellDateStr);
+        };
+        calendarGrid.appendChild(dayDiv);
       }
     }
 
@@ -211,6 +232,8 @@
       eventPrivate.checked = false;
       eventReminder.value = '';
       eventLocation.value = '';
+      renderEventForList([userProfile.id]);
+      eventOnlyFor.checked = true;
     };
     closeEventModal.onclick = function() {
       eventModalBg.style.display = 'none';
@@ -219,13 +242,24 @@
       if (e.target === eventModalBg) eventModalBg.style.display = 'none';
     };
 
+    function renderEventForList(selected) {
+      eventForList.innerHTML = '';
+      familyMembers.forEach(m => {
+        const id = 'eventFor_' + m.id;
+        const label = document.createElement('label');
+        label.style.marginRight = '1em';
+        label.innerHTML = `<input type="checkbox" id="${id}" value="${m.id}" ${selected.includes(m.id) ? 'checked' : ''}> ${m.full_name || 'Unknown'}`;
+        eventForList.appendChild(label);
+      });
+    }
+
     function editEvent(idx) {
       editingEventIndex = idx;
       const e = familyEvents[idx];
       eventModalTitle.textContent = "Edit Event";
       eventModalBg.style.display = 'flex';
-      eventTitle.value = e.title;
-      eventDate.value = e.date;
+      eventTitle.value = e.title || '';
+      eventDate.value = e.date || '';
       eventTime.value = e.time || '';
       eventDesc.value = e.desc || '';
       eventColor.value = e.color || '#2563eb';
@@ -233,6 +267,8 @@
       eventPrivate.checked = !!e.private;
       eventReminder.value = e.reminder || '';
       eventLocation.value = e.location || '';
+      renderEventForList(e.for || []);
+      eventOnlyFor.checked = !!e.onlyFor;
     }
 
     function editEventForDay(dateStr) {
@@ -248,6 +284,8 @@
       eventPrivate.checked = false;
       eventReminder.value = '';
       eventLocation.value = '';
+      renderEventForList([userProfile.id]);
+      eventOnlyFor.checked = true;
     }
 
     window.editEvent = editEvent;
@@ -256,12 +294,17 @@
       if (!confirm("Delete this event?")) return;
       familyEvents.splice(idx, 1);
       await saveFamilyEvents(familyEvents);
-      await loadFamilyEvents();
-      showNotification('Event deleted.');
+      showNotification("Event deleted.");
+      renderCalendar(currentMonth, currentYear);
     };
 
     eventForm.onsubmit = async function(e) {
       e.preventDefault();
+      const selectedFor = Array.from(eventForList.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+      if (selectedFor.length === 0) {
+        alert("Please select at least one family member.");
+        return;
+      }
       const newEvent = {
         title: eventTitle.value,
         date: eventDate.value,
@@ -271,7 +314,9 @@
         category: eventCategory.value,
         private: eventPrivate.checked,
         reminder: eventReminder.value,
-        location: eventLocation.value
+        location: eventLocation.value,
+        for: selectedFor,
+        onlyFor: eventOnlyFor.checked
       };
       if (editingEventIndex !== null) {
         familyEvents[editingEventIndex] = newEvent;
@@ -279,32 +324,28 @@
         familyEvents.push(newEvent);
       }
       await saveFamilyEvents(familyEvents);
-      await loadFamilyEvents();
+      showNotification("Event saved!");
       eventModalBg.style.display = 'none';
-      showNotification('Event saved!');
+      renderCalendar(currentMonth, currentYear);
     };
 
     function showNotification(msg, duration = 3500) {
-      const notif = document.getElementById('notification');
-      notif.textContent = msg;
-      notif.style.display = 'block';
-      notif.style.opacity = '1';
-      notif.style.transform = 'translateY(0)';
-      notif.style.pointerEvents = 'auto';
+      const n = document.getElementById('notification');
+      n.textContent = msg;
+      n.style.display = 'block';
+      n.style.opacity = '1';
+      n.style.pointerEvents = 'auto';
       setTimeout(() => {
-        notif.style.opacity = '0';
-        notif.style.transform = 'translateY(-30px)';
-        notif.style.pointerEvents = 'none';
-        setTimeout(() => { notif.style.display = 'none'; }, 400);
+        n.style.opacity = '0';
+        n.style.pointerEvents = 'none';
       }, duration);
     }
 
     // --- Initial Render ---
     async function initialLoadAndSync() {
       await getProfileAndFamily();
-      await loadFamilyEvents();
       updateMonthYear();
-      renderCalendar(currentMonth, currentYear);
+      await loadFamilyEvents();
     }
     window.addEventListener('DOMContentLoaded', initialLoadAndSync);
   </script>

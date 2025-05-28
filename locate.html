@@ -1,3 +1,4 @@
+<!-- Show the location of everyone in the family on the map (requires Supabase auth and profiles with lat/lng fields) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,7 +68,7 @@
     <section class="location-section">
       <div class="location-status" id="locationStatus">Getting your location…</div>
       <div id="map"></div>
-            <form class="directions-form" id="searchForm" autocomplete="off">
+      <form class="directions-form" id="searchForm" autocomplete="off">
         <input type="text" id="placeQuery" placeholder="Search for nearby places (e.g. coffee, library)" required>
         <button type="submit">Search</button>
       </form>
@@ -78,32 +79,74 @@
     Daylee - Organize your life, your way.
   </footer>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    let userLat, userLng;
+    // --- Supabase Setup ---
+    const SUPABASE_URL = "https://qfgmcnbqhhelrdxvdrdb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZ21jbmJxaGhlbHJkeHZkcmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMTY2OTgsImV4cCI6MjA2MzY5MjY5OH0.OZhA0jmUmGcQ5ZJs3gxy99blGsz7YyRJyBfiHDDAWIc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let userLat, userLng, map, userProfile, familyId;
     const status = document.getElementById('locationStatus');
     const mapDiv = document.getElementById('map');
     const resultsList = document.getElementById('results');
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(function(pos) {
-        userLat = pos.coords.latitude;
-        userLng = pos.coords.longitude;
-        status.textContent = "You're here!";
-        // Initialize map
-        const map = L.map('map').setView([userLat, userLng], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-        L.marker([userLat, userLng]).addTo(map)
-          .bindPopup("You are here!").openPopup();
-      }, function() {
-        status.textContent = "Unable to get your location.";
-        mapDiv.style.display = 'none';
-      });
-    } else {
-      status.textContent = "Geolocation is not supported by your browser.";
-      mapDiv.style.display = 'none';
+    // Get user profile and family
+    async function getProfileAndFamily() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { status.textContent = "Please sign in."; return null; }
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (!profile) { status.textContent = "No profile found."; return null; }
+      userProfile = profile;
+      familyId = profile.family_id;
+      return profile;
     }
+
+    // Save user's location to their profile
+    async function saveUserLocation(lat, lng) {
+      if (!userProfile) return;
+      await supabase.from('profiles').update({ lat, lng }).eq('id', userProfile.id);
+    }
+
+    // Show all family members' locations on the map
+    async function showFamilyLocations() {
+      if (!familyId || !map) return;
+      const { data: members } = await supabase.from('profiles').select('full_name,lat,lng,id').eq('family_id', familyId);
+      members.forEach(m => {
+        if (typeof m.lat === 'number' && typeof m.lng === 'number') {
+          const marker = L.marker([m.lat, m.lng]).addTo(map);
+          marker.bindPopup(`<b>${m.full_name || "Unknown"}</b>${m.id === userProfile.id ? " (You)" : ""}`);
+        }
+      });
+    }
+
+    // Geolocation and map setup
+    async function setupMapAndLocations() {
+      await getProfileAndFamily();
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async function(pos) {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          status.textContent = "You're here!";
+          map = L.map('map').setView([userLat, userLng], 15);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(map);
+          // Save your location to your profile
+          await saveUserLocation(userLat, userLng);
+          // Show all family locations
+          await showFamilyLocations();
+        }, function() {
+          status.textContent = "Unable to get your location.";
+          mapDiv.style.display = 'none';
+        });
+      } else {
+        status.textContent = "Geolocation is not supported by your browser.";
+        mapDiv.style.display = 'none';
+      }
+    }
+
+    setupMapAndLocations();
 
     document.getElementById('searchForm').addEventListener('submit', function(e) {
       e.preventDefault();
