@@ -64,6 +64,7 @@
         </label>
         <!-- Removed "Who is this for?" section -->
         <button type="submit" style="margin-top:1em;">Save Event</button>
+        <button type="button" id="deleteEventBtn" style="margin-top:1em;display:none;background:#ef4444;color:#fff;border:none;padding:0.6em 1.2em;border-radius:0.5em;font-weight:600;float:right;">Delete</button>
       </form>
     </div>
   </div>
@@ -98,6 +99,7 @@
     const eventPrivate = document.getElementById('eventPrivate');
     const eventReminder = document.getElementById('eventReminder');
     const eventLocation = document.getElementById('eventLocation');
+    const deleteEventBtn = document.getElementById('deleteEventBtn');
     // Removed eventForList and familyMembers logic
     let today = new Date();
     let currentMonth = today.getMonth();
@@ -215,6 +217,7 @@
       eventPrivate.checked = false;
       eventReminder.value = '';
       eventLocation.value = '';
+      deleteEventBtn.style.display = 'none'; // Hide delete button for new event
     };
     closeEventModal.onclick = function() {
       eventModalBg.style.display = 'none';
@@ -237,6 +240,7 @@
       eventPrivate.checked = !!e.private;
       eventReminder.value = e.reminder || '';
       eventLocation.value = e.location || '';
+      deleteEventBtn.style.display = 'inline-block'; // Show delete button for editing
     }
 
     function editEventForDay(dateStr) {
@@ -252,7 +256,20 @@
       eventPrivate.checked = false;
       eventReminder.value = '';
       eventLocation.value = '';
+      deleteEventBtn.style.display = 'none'; // Hide delete button for new event
     }
+
+    deleteEventBtn.onclick = async function() {
+      if (editingEventIndex !== null) {
+        if (confirm("Delete this event?")) {
+          familyEvents.splice(editingEventIndex, 1);
+          await saveFamilyEvents(familyEvents);
+          showNotification("Event deleted.");
+          eventModalBg.style.display = 'none';
+          renderCalendar(currentMonth, currentYear);
+        }
+      }
+    };
 
     window.editEvent = editEvent;
 
