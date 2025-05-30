@@ -77,7 +77,20 @@
 
     // --- Smarter Synonym and Phrase Normalization ---
     function normalizeInput(input) {
-      return input.trim().toLowerCase();
+      // Correct common misspellings for date words and other keywords
+      let text = input.trim().toLowerCase();
+      text = text
+        .replace(/\btomm?orrow\b/g, "tomorrow")
+        .replace(/\btodayy\b/g, "today")
+        .replace(/\byesturday\b/g, "yesterday")
+        .replace(/\bcalender\b/g, "calendar")
+        .replace(/\bdelet\b/g, "delete")
+        .replace(/\bad\b/g, "add")
+        .replace(/\beventt\b/g, "event")
+        .replace(/\bshwo\b/g, "show")
+        .replace(/\bwhenn\b/g, "when")
+        .replace(/\bavailible\b/g, "available");
+      return text;
     }
 
     // --- Natural Language Parser for Calendar ---
@@ -89,27 +102,55 @@
         return { action: "calculate", expr: input.trim() };
       }
 
-      // Add event
+      // Add event: supports "add event title tomorrow", "add event title today", "add event title", etc.
       if (/add/.test(text)) {
-        const titleMatch = text.match(/add (?:event )?(.+?)(?: on |\s+at |\s*$)/i);
-        const dateMatch = text.match(/on (\d{4}-\d{2}-\d{2})/i);
-        const timeMatch = text.match(/at (\d{1,2}(:\d{2})?\s*[ap]m|\d{1,2}:\d{2})/i);
+        let title = "";
+        let date = null;
+        let time = "";
+
+        // Try to extract title and keywords
+        // e.g. "add event Dentist tomorrow at 15:00"
+        const addMatch = text.match(/add (?:event )?(.+?)(?: on (\d{4}-\d{2}-\d{2}))?(?: at (\d{1,2}(:\d{2})?\s*[ap]m|\d{1,2}:\d{2}))?(?:\s|$)/i);
+
+        if (addMatch) {
+          title = addMatch[1]
+            .replace(/\b(tomorrow|today|yesterday)\b/i, '') // Remove date words from title
+            .replace(/\s+$/, '')
+            .trim();
+          if (addMatch[2]) date = addMatch[2];
+          if (addMatch[3]) time = addMatch[3].replace(/\s+/g, '');
+        }
+
+        // If "tomorrow", "today", or "yesterday" is in the input, set date accordingly
+        if (/tomorrow/.test(text)) {
+          const d = new Date(); d.setDate(d.getDate() + 1);
+          date = d.toISOString().slice(0, 10);
+        } else if (/today/.test(text)) {
+          date = new Date().toISOString().slice(0, 10);
+        } else if (/yesterday/.test(text)) {
+          const d = new Date(); d.setDate(d.getDate() - 1);
+          date = d.toISOString().slice(0, 10);
+        }
+
+        // If no title found, fallback to "Untitled"
+        if (!title) title = "Untitled";
+
         return {
           action: "add",
-          title: titleMatch ? titleMatch[1].trim() : "Untitled",
-          date: dateMatch ? dateMatch[1] : null,
-          time: timeMatch ? timeMatch[1].replace(/\s+/g, '') : ""
+          title,
+          date,
+          time
         };
       }
 
-      // Delete event
+      // Delete event: supports "delete event title", "delete title"
       if (/delete/.test(text)) {
-        const titleMatch = text.match(/delete (?:event )?(.+?)(?: on |\s+at |\s*$)/i);
-        const dateMatch = text.match(/on (\d{4}-\d{2}-\d{2})/i);
+        // Match "delete event title" or "delete title"
+        const delMatch = text.match(/delete (?:event )?(.+?)(?: on |\s+at |\s*$)/i) || text.match(/delete (.+)/i);
+        let title = delMatch ? delMatch[1].replace(/(tomorrow|today|yesterday)$/i, '').trim() : null;
         return {
           action: "delete",
-          title: titleMatch ? titleMatch[1].trim() : null,
-          date: dateMatch ? dateMatch[1] : null
+          title: title
         };
       }
 
@@ -166,8 +207,6 @@
 
     // --- Free AI API for general questions (no key required) ---
     async function askFreeAiApi(question, calendarContext) {
-      // Using the public "duckduckgo instant answer" API as a placeholder for demo (not a real LLM, but no key needed)
-      // You can swap this for any other free, no-key API.
       const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(question + " " + calendarContext)}&format=json&no_redirect=1&no_html=1`;
       try {
         const res = await fetch(url);
@@ -195,15 +234,15 @@
         }
       }
 
-      // Add event
+      // Add event (actually adds to calendar)
       if (cmd.action === "add") {
-        if (!cmd.date) return "Please specify a date for the event (e.g. 'add event Meeting on 2024-06-01').";
+        if (!cmd.date) return "Please specify a date for the event (e.g. 'add event Meeting tomorrow' or 'add event Meeting on 2024-06-01').";
         const newEvent = {
           title: cmd.title || "Untitled",
           date: cmd.date,
           time: cmd.time || "",
           desc: "",
-          color: "#2563eb",
+          color: "#fff", // Default color is white
           category: "",
           private: false,
           reminder: "",
@@ -214,14 +253,15 @@
         return `Event "${newEvent.title}" added on ${cmd.date}${cmd.time ? " at " + cmd.time : ""}.`;
       }
 
-      // Delete event
+      // Delete event (by name, deletes all matching events)
       if (cmd.action === "delete") {
-        if (!cmd.title || !cmd.date) return "Please specify the event title and date (e.g. 'delete event Meeting on 2024-06-01').";
-        const idx = familyEvents.findIndex(e => e.title.toLowerCase() === cmd.title.toLowerCase() && e.date === cmd.date);
-        if (idx === -1) return "Event not found.";
-        familyEvents.splice(idx, 1);
+        if (!cmd.title) return "Please specify the event name (e.g. 'delete event Meeting').";
+        const beforeCount = familyEvents.length;
+        familyEvents = familyEvents.filter(e => e.title.toLowerCase() !== cmd.title.toLowerCase());
+        const deletedCount = beforeCount - familyEvents.length;
+        if (deletedCount === 0) return `No event named "${cmd.title}" found.`;
         await supabase.from('calendars').upsert([{ family_id: familyId, events: familyEvents }]);
-        return `Event "${cmd.title}" on ${cmd.date} deleted.`;
+        return `Deleted ${deletedCount} event${deletedCount > 1 ? "s" : ""} named "${cmd.title}".`;
       }
 
       // Edit event
@@ -358,8 +398,10 @@
       if (cmd.action === "help") {
         return `You can ask me things like:
 - "Show my events today"
+- "Add event Dentist tomorrow"
 - "Add event Dentist on 2024-06-01 at 15:00"
-- "Delete event Dentist on 2024-06-01"
+- "Delete event Dentist"
+- "Delete Dentist"
 - "Edit event Dentist on 2024-06-01 to 16:00"
 - "Can I do yoga at 10:00 on 2024-06-01?"
 - "Am I free at 2pm tomorrow?"
@@ -373,7 +415,6 @@ I understand many ways to ask about your calendar, events, and even math!`;
 
       // For any other question, use the free AI API with calendar context
       if (cmd.action === "unknown") {
-        // Provide context: list of events as a string
         const context = familyEvents.length
           ? familyEvents.map(e => `${e.title} on ${e.date}${e.time ? " at " + e.time : ""}`).join("; ")
           : "No events scheduled.";
