@@ -1,0 +1,54 @@
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  background: #f1f5fd;
+}
+
+.container {
+  max-width: 400px;
+  margin: 3em auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 16px #2563eb22;
+  padding: 2em;
+}
+
+h1 {
+  color: #2563eb;
+}
+
+input,
+button {
+  width: 100%;
+  margin-bottom: 1em;
+  padding: 0.7em;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 1em;
+}
+
+button {
+  background: linear-gradient(90deg, #2563eb 0%, #06b6d4 100%);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+
+.error {
+  color: #d32f2f;
+  margin-bottom: 1em;
+}
+
+.success {
+  color: #388e3c;
+  margin-bottom: 1em;
+}
+
+.switch {
+  text-align: center;
+  margin-top: 1em;
+}
+
+.switch a {
+  color: #2563eb;
+  cursor: pointer;
+}

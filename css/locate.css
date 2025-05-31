@@ -1,0 +1,42 @@
+.location-section {
+      margin: 2rem auto;
+      max-width: 480px;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 24px #2563eb11;
+      padding: 2rem;
+      text-align: center;
+    }
+    #map {
+      height: 260px;
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 12px #2563eb22;
+    }
+    .directions-form input {
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      width: 70%;
+      margin-right: 0.5rem;
+      font-size: 1rem;
+    }
+    .directions-form button {
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .directions-form button:hover {
+      background: #1d4ed8;
+    }
+    .location-status {
+      color: #2563eb;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }

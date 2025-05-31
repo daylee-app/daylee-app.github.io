@@ -6,261 +6,60 @@
   <title>Daylee – Dashboard</title>
   <meta name="description" content="Daylee is a modern calendar app with built-in weather, AI tools, smart notifications, and more. Organize your life, your way.">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-  <!-- Add this inside your <head> section -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <link href="/css/home.css" rel="stylesheet">
-  <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
-  
-  <style>
-    body {
-      background: #f6f8fc;
-      font-family: 'Inter', sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    .dashboard-container {
-      display: flex;
-      min-height: 100vh;
-    }
-    .sidebar {
-      width: 240px;
-      background: #2563eb;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2em 1em 1em 1em;
-      box-shadow: 2px 0 16px #2563eb22;
-      min-height: 100vh;
-    }
-    .sidebar .logo {
-      width: 64px;
-      height: 64px;
-      border-radius: 16px;
-      box-shadow: 0 4px 16px #fff2;
-      margin-bottom: 1em;
-      background: #fff;
-      object-fit: cover;
-    }
-    .sidebar .app-title {
-      font-size: 1.7em;
-      font-weight: 700;
-      margin-bottom: 0.5em;
-      letter-spacing: 1px;
-    }
-    .sidebar .subtitle {
-      font-size: 1em;
-      color: #c7d2fe;
-      margin-bottom: 2em;
-      text-align: center;
-    }
-    .nav-links {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 1em;
-    }
-    .nav-link {
-      display: flex;
-      align-items: center;
-      gap: 1em;
-      padding: 0.9em 1em;
-      border-radius: 0.7em;
-      color: #fff;
-      text-decoration: none;
-      font-size: 1.1em;
-      font-weight: 500;
-      transition: background 0.15s;
-    }
-    .nav-link:hover, .nav-link.active {
-      background: #1e40af;
-      color: #fff;
-    }
-    .nav-link i {
-      font-size: 1.3em;
-      width: 28px;
-      text-align: center;
-    }
-    .main-content {
-      flex: 1;
-      padding: 2.5em 3em 2em 3em;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-    }
-    .dashboard-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 2em;
-    }
-    .dashboard-header h1 {
-      font-size: 2em;
-      font-weight: 700;
-      color: #22223b;
-      margin: 0;
-    }
-    .dashboard-header .user-info {
-      font-size: 1em;
-      color: #2563eb;
-      font-weight: 600;
-    }
-    .dashboard-widgets {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 2em;
-      margin-bottom: 2em;
-    }
-    .widget {
-      background: #fff;
-      border-radius: 1em;
-      box-shadow: 0 2px 12px #2563eb22;
-      padding: 1.5em 1.5em 1.2em 1.5em;
-      display: flex;
-      flex-direction: column;
-      gap: 0.7em;
-      min-height: 180px;
-    }
-    .widget-title {
-      font-size: 1.2em;
-      font-weight: 700;
-      color: #2563eb;
-      margin-bottom: 0.3em;
-      display: flex;
-      align-items: center;
-      gap: 0.5em;
-    }
-    .widget-desc {
-      color: #444;
-      font-size: 1em;
-      flex: 1;
-    }
-    .mockup-img {
-      width: 100%;
-      max-width: 420px;
-      border-radius: 1em;
-      box-shadow: 0 4px 24px #2563eb22;
-      margin: 0 auto;
-      display: block;
-    }
-    #familyCodeDisplay {
-      margin: 1.5em auto 1em auto;
-      max-width: 400px;
-      background: #e0e7ff;
-      color: #22223b;
-      padding: 1em 1.5em;
-      border-radius: 1em;
-      text-align: center;
-      font-size: 1.2em;
-      font-weight: 600;
-      box-shadow: 0 2px 12px #2563eb22;
-    }
-    footer {
-      text-align: center;
-      color: #888;
-      font-size: 1em;
-      padding: 1.5em 0 0.5em 0;
-      margin-top: auto;
-    }
-    @media (max-width: 900px) {
-      .dashboard-container { flex-direction: column; }
-      .sidebar { flex-direction: row; width: 100%; min-height: unset; padding: 1em 0.5em; }
-      .main-content { padding: 1.5em 1em; }
-      .dashboard-header { flex-direction: column; align-items: flex-start; gap: 1em; }
-    }
-  </style>
+  <link href="/css/dashboard.css" rel="stylesheet">
+  <link rel="icon" href="/uploads/images/favicon.png" type="image/png"> 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/javascript/dashboard.js" defer></script>
 </head>
 <body>
 <div class="loader"></div>
-<script>
-  // Show loader for 3 seconds, then hide
-  window.addEventListener('DOMContentLoaded', function() {
-    const loader = document.querySelector('.loader');
-    if (loader) {
-      loader.style.display = 'block';
-      setTimeout(() => {
-        loader.style.opacity = '0';
-        loader.style.pointerEvents = 'none';
-        setTimeout(() => loader.style.display = 'none', 400);
-      }, 3000);
-    }
-  });
-</script>
+<header id="mainHeader">
+  <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
+    <br>
+  <span class="logo">Daylee</span>
+  <div class="subtitle">A calendar app, reimagined.<br>Smarter, simpler, and more connected to your day.</div>
+</header>
 <div class="dashboard-container">
   <aside class="sidebar">
     <img class="logo" src="/uploads/images/daylee.png" alt="Daylee Logo"/>
     <div class="app-title">daylee</div>
     <div class="subtitle">A calendar app, reimagined.</div>
     <nav class="nav-links">
-      <a href="/dashboard" class="nav-link active"><i class="fa-solid fa-house"></i>Dashboard</a>
-      <a href="/calendar" class="nav-link"><i class="fa-solid fa-calendar-days"></i>Calendar</a>
-      <a href="/weather" class="nav-link"><i class="fa-solid fa-cloud-bolt"></i>Weather</a>
-      <a href="/ai" class="nav-link"><i class="fa-solid fa-robot"></i>Schedula AI</a>
-      <a href="/locate" class="nav-link"><i class="fa-solid fa-earth-americas"></i>Websites & Locations</a>
-      <a href="/signin" class="nav-link"><i class="fa-solid fa-user"></i>Sign In / Sign Up</a>
+      <a href="/dashboard-content.html" class="nav-link active" data-iframe="false"><i class="fa-solid fa-house"></i>Dashboard</a>
+      <a href="/calendar.html" class="nav-link" data-iframe="true"><i class="fa-solid fa-calendar-days"></i>Calendar</a>
+      <a href="/weather.html" class="nav-link" data-iframe="true"><i class="fa-solid fa-cloud-bolt"></i>Weather</a>
+      <a href="/ai.html" class="nav-link" data-iframe="true"><i class="fa-solid fa-robot"></i>Schedula AI</a>
+      <a href="/locate.html" class="nav-link" data-iframe="true"><i class="fa-solid fa-earth-americas"></i>Websites & Locations</a>
+      <a href="/signin.html" class="nav-link" data-iframe="true"><i class="fa-solid fa-user"></i>Sign In / Sign Up</a>
     </nav>
   </aside>
-  <main class="main-content">
-    <div class="dashboard-header">
-      <h1>Welcome to your Dashboard</h1>
-      <div class="user-info" id="userInfo"></div>
-    </div>
-    <div id="familyCodeDisplay"></div>
-    <section class="dashboard-widgets">
-      <div class="widget">
-        <div class="widget-title"><i class="fa-solid fa-calendar-days"></i>Calendar</div>
-        <div class="widget-desc">Always stay on track by planning out your day. <a href="/calendar" style="color:#2563eb;font-weight:600;">Open Calendar &rarr;</a></div>
-      </div>
-      <div class="widget">
-        <div class="widget-title"><i class="fa-solid fa-cloud-bolt"></i>Weather</div>
-        <div class="widget-desc">See the forecast for your events and plan your day with confidence. <a href="/weather" style="color:#2563eb;font-weight:600;">Check Weather &rarr;</a></div>
-      </div>
-      <div class="widget">
-        <div class="widget-title"><i class="fa-solid fa-robot"></i>Schedula AI</div>
-        <div class="widget-desc">Let AI help you schedule, suggest, and optimize your calendar. <a href="/ai" style="color:#2563eb;font-weight:600;">Try AI &rarr;</a></div>
-      </div>
-      <div class="widget">
-        <div class="widget-title"><i class="fa-solid fa-earth-americas"></i>Websites & Locations</div>
-        <div class="widget-desc">Attach links and places to your events for easy access and navigation. <a href="/locate" style="color:#2563eb;font-weight:600;">Manage Locations &rarr;</a></div>
-      </div>
-    </section>
-    <section>
-      <img class="mockup-img" src="/uploads/images/calendar-stock.png" alt="Calendar">
-    </section>
-  </main>
+
+  <div class="iframe-content">
+    <main class="main-content" id="mainContent">
+      <div id="familyCodeDisplay"></div>
+      <section class="dashboard-widgets">
+        <div class="widget">
+          <div class="widget-title"><i class="fa-solid fa-calendar-days"></i>Calendar</div>
+          <div class="widget-desc">Always stay on track by planning out your day. <a href="/calendar" class="iframe-link" style="color:#2563eb;font-weight:600;">Open Calendar &rarr;</a></div>
+        </div>
+        <div class="widget">
+          <div class="widget-title"><i class="fa-solid fa-cloud-bolt"></i>Weather</div>
+          <div class="widget-desc">See the forecast for your events and plan your day with confidence. <a href="/weather" class="iframe-link" style="color:#2563eb;font-weight:600;">Check Weather &rarr;</a></div>
+        </div>
+        <div class="widget">
+          <div class="widget-title"><i class="fa-solid fa-robot"></i>Schedula AI</div>
+          <div class="widget-desc">Let AI help you schedule, suggest, and optimize your calendar. <a href="/ai" class="iframe-link" style="color:#2563eb;font-weight:600;">Try AI &rarr;</a></div>
+        </div>
+        <div class="widget">
+          <div class="widget-title"><i class="fa-solid fa-earth-americas"></i>Websites & Locations</div>
+          <div class="widget-desc">Attach links and places to your events for easy access and navigation. <a href="/locate" class="iframe-link" style="color:#2563eb;font-weight:600;">Manage Locations &rarr;</a></div>
+        </div>
+      </section>
+    </main>
+    <iframe class="iframe-viewer" id="iframeViewer" style="display:none;" title="Daylee Content"></iframe>
+  </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  // --- Supabase Setup ---
-  const SUPABASE_URL = "https://qfgmcnbqhhelrdxvdrdb.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZ21jbmJxaGhlbHJkeHZkcmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMTY2OTgsImV4cCI6MjA2MzY5MjY5OH0.OZhA0jmUmGcQ5ZJs3gxy99blGsz7YyRJyBfiHDDAWIc";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // --- Display Family Code ---
-  async function displayFamilyCode() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: profile } = await supabase.from('profiles').select('family_id').eq('id', user.id).single();
-    if (!profile || !profile.family_id) return;
-    const { data: family } = await supabase.from('families').select('code').eq('id', profile.family_id).single();
-    if (family && family.code) {
-      let codeDiv = document.getElementById('familyCodeDisplay');
-      codeDiv.innerHTML = `Your Family Code: <span style="color:#2563eb;font-weight:700;font-size:1.3em;">${family.code}</span>`;
-    }
-  }
-  displayFamilyCode();
-
-  // --- Display User Info (optional) ---
-  async function displayUserInfo() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.email) {
-      document.getElementById('userInfo').textContent = user.email;
-    }
-  }
-  displayUserInfo();
-</script>
-<footer>
-  Daylee – Organize your life, your way.
-</footer>
 </body>
 </html>

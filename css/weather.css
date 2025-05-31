@@ -1,0 +1,158 @@
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  background: #e0f2fe;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 520px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 16px #2563eb22;
+  padding: 36px 24px 28px;
+}
+
+h1 {
+  text-align: center;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 0.5em;
+}
+
+#weather {
+  margin-top: 20px;
+  font-size: 1.08em;
+}
+
+.label {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.error {
+  color: #d32f2f;
+  margin-top: 16px;
+  text-align: center;
+}
+
+#refresh-btn {
+  margin: 24px auto 0;
+  display: block;
+  background: linear-gradient(90deg, #2563eb 0%, #06b6d4 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-size: 1.08em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #2563eb22;
+  transition: background 0.2s;
+}
+
+#refresh-btn:hover {
+  background: linear-gradient(90deg, #1e40af 0%, #0891b2 100%);
+}
+
+.weather-icon {
+  font-size: 2.5em;
+  margin-bottom: 0.2em;
+  display: block;
+  text-align: center;
+}
+
+.weather-row {
+  margin-bottom: 0.7em;
+}
+
+.weather-title {
+  font-size: 1.15em;
+  font-weight: 600;
+  color: #2563eb;
+  margin-bottom: 0.2em;
+}
+
+.weather-detail {
+  color: #22223b;
+}
+
+.subtitle {
+  text-align: center;
+  color: #64748b;
+  font-size: 1.05em;
+  margin-bottom: 1.2em;
+}
+
+.weather-section {
+  margin-bottom: 1.5em;
+  border-bottom: 1px solid #e0e7ef;
+  padding-bottom: 1em;
+}
+
+.weather-section:last-child {
+  border-bottom: none;
+}
+
+.map-wrap {
+  text-align: center;
+  margin: 1.2em 0 1.5em;
+}
+
+.map-frame {
+  border: 2px solid #2563eb33;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  height: 220px;
+}
+
+.forecast-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1em;
+}
+
+.forecast-table th,
+.forecast-table td {
+  padding: 0.4em 0.6em;
+  text-align: center;
+}
+
+.forecast-table th {
+  background: #e0f2fe;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.forecast-table tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.forecast-table tr:nth-child(odd) {
+  background: #f1f5f9;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 14px 2vw;
+  }
+
+  .map-frame {
+    height: 160px;
+  }
+}
+
+a#top-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.1em;
+  display: block;
+  margin-bottom: 1.2em;
+}
+
+a#top-link:hover {
+  text-decoration: underline;
+}
