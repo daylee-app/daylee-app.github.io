@@ -1,350 +1,313 @@
-    let lastLat = null, lastLon = null;
-
-    function fetchWeather(lat, lon) {
-      lastLat = lat; lastLon = lon;
-      function prefersFahrenheit(lat, lon) {
-        if (lat > 18 && lat < 50 && lon < -50 && lon > -130) return true;
-        if (lat > 20 && lat < 28 && lon > -80 && lon < -72) return true;
-        if (lat > 18 && lat < 21 && lon > -82 && lon < -79) return true;
-        if (lat > 4 && lat < 9 && lon > -12 && lon < -7) return true;
-        return false;
-      }
-      const useF = prefersFahrenheit(lat, lon);
-      const tempUnit = useF ? "fahrenheit" : "celsius";
-      const windUnit = useF ? "mph" : "kmh";
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,apparent_temperature,precipitation,weathercode,cloudcover,windspeed_10m,winddirection_10m,relativehumidity_2m,dewpoint_2m,visibility,uv_index,pressure_msl&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,weathercode,uv_index_max,windgusts_10m_max&temperature_unit=${tempUnit}&windspeed_unit=${windUnit}&precipitation_unit=mm&timezone=auto`;
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.current_weather) {
-            showError("Weather data not available for your location.");
-            return;
-          }
-          showWeather(data, useF, lat, lon);
-        })
-        .catch(() => showError("Could not fetch weather data."));
-    }
-
-    function getWeatherIcon(code) {
-      if ([0, 1].includes(code)) return "☀️";
-      if ([2].includes(code)) return "🌤️";
-      if ([3].includes(code)) return "☁️";
-      if ([45, 48].includes(code)) return "🌫️";
-      if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "🌧️";
-      if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️";
-      if ([95, 96, 99].includes(code)) return "⛈️";
-      return "🌡️";
-    }
-
-    function showWeather(data, useF, lat, lon) {
-      const w = data.current_weather;
-      const daily = data.daily;
-      const weatherDiv = document.getElementById('weather');
-      const weatherCodes = {
-        0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-        45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle", 53: "Drizzle", 55: "Dense drizzle",
-        56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Slight rain", 63: "Rain", 65: "Heavy rain",
-        66: "Freezing rain", 67: "Freezing rain", 71: "Slight snow", 73: "Snow", 75: "Heavy snow",
-        77: "Snow grains", 80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
-        85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm hail", 99: "Thunderstorm hail"
-      };
-      const tempUnit = useF ? "°F" : "°C";
-      const windUnit = useF ? "mph" : "km/h";
-      // Find current hour index
-      const now = new Date();
-      const hourIdx = data.hourly.time.findIndex(t => t.slice(0,13) === now.toISOString().slice(0,13));
-      // Map
-      const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.06},${lat-0.04},${lon+0.06},${lat+0.04}&layer=mapnik&marker=${lat},${lon}`;
-      // Address (reverse geocode)
-      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
-        .then(r=>r.json())
-        .then(addrData => {
-          const address = addrData.display_name || `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-          weatherDiv.innerHTML = `
-            <div class="weather-section">
-              <div class="weather-icon">${getWeatherIcon(w.weathercode)}</div>
-              <div class="weather-title">${weatherCodes[w.weathercode] || "Unknown"}</div>
-              <div class="weather-row weather-detail"><span class="label">Location:</span> ${address}</div>
-              <div class="weather-row weather-detail"><span class="label">Coordinates:</span> ${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
-              <div class="weather-row weather-detail"><span class="label">Time:</span> ${now.toLocaleString()}</div>
-            </div>
-            <div class="map-wrap">
-              <iframe class="map-frame" src="${mapUrl}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-            </div>
-            <div class="weather-section">
-              <div class="weather-row weather-detail"><span class="label">Temperature:</span> ${w.temperature}${tempUnit} (feels like ${data.hourly.apparent_temperature[hourIdx]}${tempUnit})</div>
-              <div class="weather-row weather-detail"><span class="label">Humidity:</span> ${data.hourly.relativehumidity_2m[hourIdx]}%</div>
-              <div class="weather-row weather-detail"><span class="label">Dew Point:</span> ${data.hourly.dewpoint_2m[hourIdx]}${tempUnit}</div>
-              <div class="weather-row weather-detail"><span class="label">Wind:</span> ${w.windspeed} ${windUnit} (${w.winddirection}°)</div>
-              <div class="weather-row weather-detail"><span class="label">Wind Gusts:</span> ${daily.windgusts_10m_max[0]} ${windUnit}</div>
-              <div class="weather-row weather-detail"><span class="label">Cloud Cover:</span> ${data.hourly.cloudcover[hourIdx]}%</div>
-              <div class="weather-row weather-detail"><span class="label">Visibility:</span> ${data.hourly.visibility[hourIdx] ? (data.hourly.visibility[hourIdx]/1000).toFixed(1) + " km" : "N/A"}</div>
-              <div class="weather-row weather-detail"><span class="label">Pressure:</span> ${data.hourly.pressure_msl[hourIdx]} hPa</div>
-              <div class="weather-row weather-detail"><span class="label">Precipitation:</span> ${data.hourly.precipitation[hourIdx]} mm</div>
-              <div class="weather-row weather-detail"><span class="label">UV Index:</span> ${data.hourly.uv_index[hourIdx] || daily.uv_index_max[0] || "N/A"}</div>
-              <div class="weather-row weather-detail"><span class="label">Sunrise:</span> ${daily.sunrise[0].slice(11,16)}</div>
-              <div class="weather-row weather-detail"><span class="label">Sunset:</span> ${daily.sunset[0].slice(11,16)}</div>
-              <div class="weather-row weather-detail"><span class="label">Today's High:</span> ${daily.temperature_2m_max[0]}${tempUnit}</div>
-              <div class="weather-row weather-detail"><span class="label">Today's Low:</span> ${daily.temperature_2m_min[0]}${tempUnit}</div>
-              <div class="weather-row weather-detail"><span class="label">Today's Precipitation:</span> ${daily.precipitation_sum[0]} mm</div>
-            </div>
-            <div class="weather-section">
-              <div class="weather-title" style="margin-bottom:0.5em;">5-Day Forecast</div>
-              <table class="forecast-table">
-                <tr>
-                  <th>Date</th>
-                  <th>Weather</th>
-                  <th>High</th>
-                  <th>Low</th>
-                  <th>Precip</th>
-                  <th>UV Max</th>
-                  <th>Wind Gust</th>
-                </tr>
-                ${daily.time.slice(0,5).map((date,i) => `
-                  <tr>
-                    <td>${new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
-                    <td>${getWeatherIcon(daily.weathercode[i])} ${weatherCodes[daily.weathercode[i]] || ""}</td>
-                    <td>${daily.temperature_2m_max[i]}${tempUnit}</td>
-                    <td>${daily.temperature_2m_min[i]}${tempUnit}</td>
-                    <td>${daily.precipitation_sum[i]} mm</td>
-                    <td>${daily.uv_index_max ? daily.uv_index_max[i] : "N/A"}</td>
-                    <td>${daily.windgusts_10m_max ? daily.windgusts_10m_max[i] + " " + windUnit : "N/A"}</td>
-                  </tr>
-                `).join("")}
-              </table>
-            </div>
-          `;
-          document.getElementById('refresh-btn').style.display = 'inline-block';
-          document.getElementById('error').textContent = '';
-        })
-        .catch(() => {
-          weatherDiv.innerHTML = `<div class="weather-row weather-detail"><span class="label">Coordinates:</span> ${lat.toFixed(4)}, ${lon.toFixed(4)}</div>`;
-        });
-    }
-
-    function showError(msg) {
-      document.getElementById('weather').innerHTML = '';
-      document.getElementById('error').textContent = msg;
-      document.getElementById('refresh-btn').style.display = 'inline-block';
-    }
-
-    function getLocationAndWeather() {
-      document.getElementById('weather').innerHTML = '<div style="text-align:center;color:#64748b;">Loading weather...</div>';
-      document.getElementById('error').textContent = '';
-      if (!navigator.geolocation) {
-        showError("Geolocation is not supported by your browser.");
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-        () => showError("Could not get your location. Please allow location access.")
-      );
-    }
-
-    document.getElementById('refresh-btn').onclick = getLocationAndWeather;
-
-    // Initial load
-    getLocationAndWeather();
-// ...existing code...
-
-function setSkyBackground(code) {
-  // Remove previous sky classes
-  document.body.classList.remove(
-    "sky-clear", "sky-mainly-clear", "sky-partly-cloudy", "sky-overcast",
-    "sky-fog", "sky-rain", "sky-snow", "sky-thunder"
-  );
-  // Map weather code to sky class
-  let skyClass = "sky-clear";
-  if ([0].includes(code)) skyClass = "sky-clear";
-  else if ([1].includes(code)) skyClass = "sky-mainly-clear";
-  else if ([2].includes(code)) skyClass = "sky-partly-cloudy";
-  else if ([3].includes(code)) skyClass = "sky-overcast";
-  else if ([45, 48].includes(code)) skyClass = "sky-fog";
-  else if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) skyClass = "sky-rain";
-  else if ([71, 73, 75, 77, 85, 86].includes(code)) skyClass = "sky-snow";
-  else if ([95, 96, 99].includes(code)) skyClass = "sky-thunder";
-  document.body.classList.add(skyClass);
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  background: #e0f2fe;
+  margin: 0;
+  padding: 0;
 }
 
-function getAqiClass(aqi) {
-  if (aqi <= 50) return "aqi-good";
-  if (aqi <= 100) return "aqi-moderate";
-  if (aqi <= 150) return "aqi-unhealthy";
-  if (aqi <= 200) return "aqi-very-unhealthy";
-  if (aqi > 200) return "aqi-hazardous";
-  return "aqi-unknown";
+.container {
+  max-width: 520px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 16px #2563eb22;
+  padding: 36px 24px 28px;
 }
 
-function getAqiDesc(aqi) {
-  if (aqi <= 50) return "Good";
-  if (aqi <= 100) return "Moderate";
-  if (aqi <= 150) return "Unhealthy for Sensitive Groups";
-  if (aqi <= 200) return "Unhealthy";
-  if (aqi > 200) return "Very Unhealthy/Hazardous";
-  return "Unknown";
+h1 {
+  text-align: center;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 0.5em;
 }
 
-function showWeather(data, useF, lat, lon) {
-  const w = data.current_weather;
-  const daily = data.daily;
-  const weatherDiv = document.getElementById('weather');
-  const weatherCodes = {
-    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-    45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle", 53: "Drizzle", 55: "Dense drizzle",
-    56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Slight rain", 63: "Rain", 65: "Heavy rain",
-    66: "Freezing rain", 67: "Freezing rain", 71: "Slight snow", 73: "Snow", 75: "Heavy snow",
-    77: "Snow grains", 80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
-    85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm hail", 99: "Thunderstorm hail"
-  };
-  const tempUnit = useF ? "°F" : "°C";
-  const windUnit = useF ? "mph" : "km/h";
-  const now = new Date();
-  const hourIdx = data.hourly.time.findIndex(t => t.slice(0,13) === now.toISOString().slice(0,13));
-  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.06},${lat-0.04},${lon+0.06},${lat+0.04}&layer=mapnik&marker=${lat},${lon}`;
-  setSkyBackground(w.weathercode);
-
-  // Fetch address and air quality in parallel
-  Promise.all([
-    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`).then(r=>r.json()).catch(()=>null),
-    fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone&timezone=auto`).then(r=>r.json()).catch(()=>null)
-  ]).then(([addrData, airData]) => {
-    const address = addrData && addrData.display_name ? addrData.display_name : `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-    // Air Quality
-    let airHtml = '';
-    if (airData && airData.hourly && airData.hourly.us_aqi) {
-      // Find closest hour
-      const aqHourIdx = airData.hourly.time.findIndex(t => t.slice(0,13) === now.toISOString().slice(0,13));
-      const aqi = airData.hourly.us_aqi[aqHourIdx] || airData.hourly.us_aqi[0];
-      airHtml = `
-        <div class="air-quality-section">
-          <div class="air-quality-title">Air Quality Index</div>
-          <span class="aqi-badge ${getAqiClass(aqi)}">${aqi}</span>
-          <div class="air-quality-detail">${getAqiDesc(aqi)}</div>
-          <div class="air-quality-detail">PM2.5: ${airData.hourly.pm2_5[aqHourIdx] || "N/A"} μg/m³, PM10: ${airData.hourly.pm10[aqHourIdx] || "N/A"} μg/m³</div>
-          <div class="air-quality-detail">O₃: ${airData.hourly.ozone[aqHourIdx] || "N/A"} μg/m³, NO₂: ${airData.hourly.nitrogen_dioxide[aqHourIdx] || "N/A"} μg/m³</div>
-        </div>
-      `;
-    }
-
-    weatherDiv.innerHTML = `
-      <div class="weather-section">
-        <div class="weather-icon">${getWeatherIcon(w.weathercode)}</div>
-        <div class="weather-title">${weatherCodes[w.weathercode] || "Unknown"}</div>
-        <div class="weather-row weather-detail"><span class="label">Location:</span> ${address}</div>
-        <div class="weather-row weather-detail"><span class="label">Coordinates:</span> ${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
-        <div class="weather-row weather-detail"><span class="label">Time:</span> ${now.toLocaleString()}</div>
-      </div>
-      ${airHtml}
-      <div class="map-wrap">
-        <iframe class="map-frame" src="${mapUrl}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-      </div>
-      <div class="weather-section">
-        <div class="weather-row weather-detail"><span class="label">Temperature:</span> ${w.temperature}${tempUnit} (feels like ${data.hourly.apparent_temperature[hourIdx]}${tempUnit})</div>
-        <div class="weather-row weather-detail"><span class="label">Humidity:</span> ${data.hourly.relativehumidity_2m[hourIdx]}%</div>
-        <div class="weather-row weather-detail"><span class="label">Dew Point:</span> ${data.hourly.dewpoint_2m[hourIdx]}${tempUnit}</div>
-        <div class="weather-row weather-detail"><span class="label">Wind:</span> ${w.windspeed} ${windUnit} (${w.winddirection}°)</div>
-        <div class="weather-row weather-detail"><span class="label">Wind Gusts:</span> ${daily.windgusts_10m_max[0]} ${windUnit}</div>
-        <div class="weather-row weather-detail"><span class="label">Cloud Cover:</span> ${data.hourly.cloudcover[hourIdx]}%</div>
-        <div class="weather-row weather-detail"><span class="label">Visibility:</span> ${data.hourly.visibility[hourIdx] ? (data.hourly.visibility[hourIdx]/1000).toFixed(1) + " km" : "N/A"}</div>
-        <div class="weather-row weather-detail"><span class="label">Pressure:</span> ${data.hourly.pressure_msl[hourIdx]} hPa</div>
-        <div class="weather-row weather-detail"><span class="label">Precipitation:</span> ${data.hourly.precipitation[hourIdx]} mm</div>
-        <div class="weather-row weather-detail"><span class="label">UV Index:</span> ${data.hourly.uv_index[hourIdx] || daily.uv_index_max[0] || "N/A"}</div>
-        <div class="weather-row weather-detail"><span class="label">Sunrise:</span> ${daily.sunrise[0].slice(11,16)}</div>
-        <div class="weather-row weather-detail"><span class="label">Sunset:</span> ${daily.sunset[0].slice(11,16)}</div>
-        <div class="weather-row weather-detail"><span class="label">Today's High:</span> ${daily.temperature_2m_max[0]}${tempUnit}</div>
-        <div class="weather-row weather-detail"><span class="label">Today's Low:</span> ${daily.temperature_2m_min[0]}${tempUnit}</div>
-        <div class="weather-row weather-detail"><span class="label">Today's Precipitation:</span> ${daily.precipitation_sum[0]} mm</div>
-      </div>
-      <div class="weather-section">
-        <div class="weather-title" style="margin-bottom:0.5em;">5-Day Forecast</div>
-        <table class="forecast-table">
-          <tr>
-            <th>Date</th>
-            <th>Weather</th>
-            <th>High</th>
-            <th>Low</th>
-            <th>Precip</th>
-            <th>UV Max</th>
-            <th>Wind Gust</th>
-          </tr>
-          ${daily.time.slice(0,5).map((date,i) => `
-            <tr>
-              <td>${new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
-              <td>${getWeatherIcon(daily.weathercode[i])} ${weatherCodes[daily.weathercode[i]] || ""}</td>
-              <td>${daily.temperature_2m_max[i]}${tempUnit}</td>
-              <td>${daily.temperature_2m_min[i]}${tempUnit}</td>
-              <td>${daily.precipitation_sum[i]} mm</td>
-              <td>${daily.uv_index_max ? daily.uv_index_max[i] : "N/A"}</td>
-              <td>${daily.windgusts_10m_max ? daily.windgusts_10m_max[i] + " " + windUnit : "N/A"}</td>
-            </tr>
-          `).join("")}
-        </table>
-      </div>
-    `;
-    document.getElementById('refresh-btn').style.display = 'inline-block';
-    document.getElementById('error').textContent = '';
-  }).catch(() => {
-    weatherDiv.innerHTML = `<div class="weather-row weather-detail"><span class="label">Coordinates:</span> ${lat.toFixed(4)}, ${lon.toFixed(4)}</div>`;
-  });
+#weather {
+  margin-top: 20px;
+  font-size: 1.08em;
 }
 
-// ...existing code...
+.label {
+  font-weight: 600;
+  color: #2563eb;
+}
 
-function renderWeatherEffects(skyClass) {
-  // Remove old effects
-  document.querySelectorAll('.weather-bg-clouds, .weather-bg-snow, .weather-bg-rain').forEach(e => e.remove());
+.error {
+  color: #d32f2f;
+  margin-top: 16px;
+  text-align: center;
+}
 
-  // Clouds
-  if (["sky-mainly-clear", "sky-partly-cloudy", "sky-overcast", "sky-fog"].includes(skyClass)) {
-    const clouds = document.createElement('div');
-    clouds.className = 'weather-bg-clouds';
-    clouds.innerHTML = `
-      <div class="cloud small"></div>
-      <div class="cloud medium"></div>
-      <div class="cloud large"></div>
-      <div class="cloud tiny"></div>
-    `;
-    document.body.prepend(clouds);
+#refresh-btn {
+  margin: 24px auto 0;
+  display: block;
+  background: linear-gradient(90deg, #2563eb 0%, #06b6d4 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-size: 1.08em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #2563eb22;
+  transition: background 0.2s;
+}
+
+#refresh-btn:hover {
+  background: linear-gradient(90deg, #1e40af 0%, #0891b2 100%);
+}
+
+.weather-icon {
+  font-size: 2.5em;
+  margin-bottom: 0.2em;
+  display: block;
+  text-align: center;
+}
+
+.weather-row {
+  margin-bottom: 0.7em;
+}
+
+.weather-title {
+  font-size: 1.15em;
+  font-weight: 600;
+  color: #2563eb;
+  margin-bottom: 0.2em;
+}
+
+.weather-detail {
+  color: #22223b;
+}
+
+.subtitle {
+  text-align: center;
+  color: #64748b;
+  font-size: 1.05em;
+  margin-bottom: 1.2em;
+}
+
+.weather-section {
+  margin-bottom: 1.5em;
+  border-bottom: 1px solid #e0e7ef;
+  padding-bottom: 1em;
+}
+
+.weather-section:last-child {
+  border-bottom: none;
+}
+
+.map-wrap {
+  text-align: center;
+  margin: 1.2em 0 1.5em;
+}
+
+.map-frame {
+  border: 2px solid #2563eb33;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  height: 220px;
+}
+
+.forecast-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1em;
+}
+
+.forecast-table th,
+.forecast-table td {
+  padding: 0.4em 0.6em;
+  text-align: center;
+}
+
+.forecast-table th {
+  background: #e0f2fe;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.forecast-table tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.forecast-table tr:nth-child(odd) {
+  background: #f1f5f9;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 14px 2vw;
   }
-  // Snow
-  if (skyClass === "sky-snow") {
-    const snow = document.createElement('div');
-    snow.className = 'weather-bg-snow';
-    let flakes = '';
-    for (let i = 0; i < 18; i++) {
-      flakes += `<span class="snowflake" style="left:${Math.random()*100}vw;animation-delay:${Math.random()*8}s;">❄️</span>`;
-    }
-    snow.innerHTML = flakes;
-    document.body.prepend(snow);
-  }
-  // Rain
-  if (skyClass === "sky-rain") {
-    const rain = document.createElement('div');
-    rain.className = 'weather-bg-rain';
-    let drops = '';
-    for (let i = 0; i < 24; i++) {
-      drops += `<span class="raindrop" style="left:${Math.random()*100}vw;animation-delay:${Math.random()*2.5}s;"></span>`;
-    }
-    rain.innerHTML = drops;
-    document.body.prepend(rain);
+
+  .map-frame {
+    height: 160px;
   }
 }
 
-// Update setSkyBackground to call renderWeatherEffects
-function setSkyBackground(code) {
-  document.body.classList.remove(
-    "sky-clear", "sky-mainly-clear", "sky-partly-cloudy", "sky-overcast",
-    "sky-fog", "sky-rain", "sky-snow", "sky-thunder"
-  );
-  let skyClass = "sky-clear";
-  if ([0].includes(code)) skyClass = "sky-clear";
-  else if ([1].includes(code)) skyClass = "sky-mainly-clear";
-  else if ([2].includes(code)) skyClass = "sky-partly-cloudy";
-  else if ([3].includes(code)) skyClass = "sky-overcast";
-  else if ([45, 48].includes(code)) skyClass = "sky-fog";
-  else if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) skyClass = "sky-rain";
-  else if ([71, 73, 75, 77, 85, 86].includes(code)) skyClass = "sky-snow";
-  else if ([95, 96, 99].includes(code)) skyClass = "sky-thunder";
-  document.body.classList.add(skyClass);
-  renderWeatherEffects(skyClass);
+a#top-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.1em;
+  display: block;
+  margin-bottom: 1.2em;
 }
+
+a#top-link:hover {
+  text-decoration: underline;
+}
+/* ...existing code... */
+
+/* Dynamic sky backgrounds */
+body.sky-clear {
+  background: linear-gradient(180deg, #aeefff 0%, #f7fbff 100%);
+}
+body.sky-mainly-clear {
+  background: linear-gradient(180deg, #b6e0fe 0%, #e0f2fe 100%);
+}
+body.sky-partly-cloudy {
+  background: linear-gradient(180deg, #b6c6e0 0%, #e0e7ef 100%);
+}
+body.sky-overcast {
+  background: linear-gradient(180deg, #bfc9d1 0%, #e5e7eb 100%);
+}
+body.sky-fog {
+  background: linear-gradient(180deg, #dbeafe 0%, #f1f5f9 100%);
+}
+body.sky-rain {
+  background: linear-gradient(180deg, #7dd3fc 0%, #bae6fd 100%);
+}
+body.sky-snow {
+  background: linear-gradient(180deg, #e0e7ef 0%, #f8fafc 100%);
+}
+body.sky-thunder {
+  background: linear-gradient(180deg, #6366f1 0%, #e0e7ef 100%);
+}
+
+/* Air Quality styles */
+.air-quality-section {
+  margin: 1.2em 0 1.5em;
+  padding: 1em;
+  border-radius: 12px;
+  background: #f1f5f9;
+  box-shadow: 0 2px 8px #2563eb11;
+  text-align: center;
+}
+.air-quality-title {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #2563eb;
+  margin-bottom: 0.4em;
+}
+.aqi-badge {
+  display: inline-block;
+  min-width: 48px;
+  padding: 0.3em 1em;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 1.1em;
+  color: #fff;
+  margin-bottom: 0.3em;
+}
+.aqi-good { background: #22c55e; }
+.aqi-moderate { background: #eab308; }
+.aqi-unhealthy { background: #ef4444; }
+.aqi-very-unhealthy { background: #a21caf; }
+.aqi-hazardous { background: #6d28d9; }
+.aqi-unknown { background: #64748b; }
+
+.air-quality-detail {
+  color: #334155;
+  font-size: 0.98em;
+  margin-top: 0.2em;
+}
+
+/* ...existing code... */
+
+/* --- Animated Weather Effects --- */
+.weather-bg-clouds,
+.weather-bg-snow,
+.weather-bg-rain {
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  overflow: hidden;
+}
+
+.cloud {
+  position: absolute;
+  background: #fff;
+  background: radial-gradient(ellipse at 60% 40%, #fff 70%, #e0e7ef 100%);
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: cloud-move 60s linear infinite;
+  filter: blur(1px);
+}
+.cloud.small { width: 80px; height: 40px; top: 10vh; left: 10vw; animation-duration: 50s;}
+.cloud.medium { width: 140px; height: 60px; top: 18vh; left: 40vw; animation-duration: 70s;}
+.cloud.large { width: 200px; height: 80px; top: 30vh; left: 70vw; animation-duration: 90s;}
+.cloud.tiny { width: 50px; height: 25px; top: 50vh; left: 80vw; animation-duration: 40s;}
+
+@keyframes cloud-move {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(60vw); }
+}
+
+/* Snowflakes */
+.snowflake {
+  position: absolute;
+  color: #fff;
+  font-size: 1.3em;
+  opacity: 0.8;
+  animation: snow-fall 8s linear infinite;
+  pointer-events: none;
+}
+@keyframes snow-fall {
+  0% { transform: translateY(-10vh) scale(1);}
+  100% { transform: translateY(110vh) scale(1.2);}
+}
+
+/* Raindrops */
+.raindrop {
+  position: absolute;
+  width: 3px;
+  height: 18px;
+  background: linear-gradient(to bottom, #bae6fd 0%, #38bdf8 100%);
+  border-radius: 2px;
+  opacity: 0.7;
+  animation: rain-fall 2.5s linear infinite;
+  pointer-events: none;
+}
+@keyframes rain-fall {
+  0% { transform: translateY(-10vh) scaleY(1);}
+  100% { transform: translateY(110vh) scaleY(1.2);}
+}
+
+/* Layer the weather effects below the main content */
+body > .weather-bg-clouds,
+body > .weather-bg-snow,
+body > .weather-bg-rain {
+  z-index: 0;
+}
+body > *:not(.weather-bg-clouds):not(.weather-bg-snow):not(.weather-bg-rain) {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Show clouds for these sky types --- */
+body.sky-mainly-clear .weather-bg-clouds,
+body.sky-partly-cloudy .weather-bg-clouds,
+body.sky-overcast .weather-bg-clouds,
+body.sky-fog .weather-bg-clouds {
+  display: block;
+}
+.weather-bg-clouds { display: none; }
+
+/* --- Show snowflakes for snow sky --- */
+body.sky-snow .weather-bg-snow { display: block; }
+.weather-bg-snow { display: none; }
+
+/* --- Show raindrops for rain sky --- */
+body.sky-rain .weather-bg-rain { display: block; }
+.weather-bg-rain { display: none; }
