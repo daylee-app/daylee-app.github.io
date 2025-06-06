@@ -1,15 +1,5 @@
-  // Show loader for 3 seconds, then hide
-  window.addEventListener('DOMContentLoaded', function() {
-    const loader = document.querySelector('.loader');
-    if (loader) {
-      loader.style.display = 'block';
-      setTimeout(() => {
-        loader.style.opacity = '0';
-        loader.style.pointerEvents = 'none';
-        setTimeout(() => loader.style.display = 'none', 400);
-      }, 3000);
-    }
-  });
+window.addEventListener('DOMContentLoaded', updateHeaderVisibility);
+
   // --- Iframe Navigation ---
   function updateHeaderVisibility() {
     const iframe = document.getElementById('iframeViewer');
