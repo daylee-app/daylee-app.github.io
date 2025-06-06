@@ -28,7 +28,7 @@
     if (error) {
       document.getElementById('loginError').textContent = error.message;
     } else {
-      window.location.href = "/dashboard";
+      window.location.href = "";
     }
   };
 
