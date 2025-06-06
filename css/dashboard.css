@@ -537,3 +537,13 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@media (max-width: 900px) {
+  .sidebar,
+  .mobile-nav-toggle,
+  .mobile-nav-overlay {
+    display: none !important;
+  }
+  header {
+    margin-left: 0;
+  }
+}
