@@ -93,3 +93,33 @@
   // Run on load
   checkAuthAndDisplay();
   window.addEventListener('DOMContentLoaded', updateHeaderVisibility);
+// Mobile nav logic
+  const sidebar = document.getElementById('sidebar');
+  const navToggle = document.getElementById('mobileNavToggle');
+  const navOverlay = document.getElementById('mobileNavOverlay');
+
+  function openMobileNav() {
+    sidebar.classList.add('open');
+    navOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMobileNav() {
+    sidebar.classList.remove('open');
+    navOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  navToggle.addEventListener('click', openMobileNav);
+  navOverlay.addEventListener('click', closeMobileNav);
+
+  // Close nav on link click (mobile only)
+  document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 900) closeMobileNav();
+    });
+  });
+
+  // Optional: close nav on resize if desktop
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 900) closeMobileNav();
+  });
