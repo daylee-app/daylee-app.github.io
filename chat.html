@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Daylee Family Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Chat with your family on Daylee.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/uploads/images/favicon.png" type="image/png">
+  <link href="/css/main.css" rel="stylesheet">
+  <link href="/css/home.css" rel="stylesheet">
+  <link href="/css/chat.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .logo {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #2563eb;
+      letter-spacing: 1px;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      color: #64748b;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+    .chat-container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.85);
+      border-radius: 1.5rem;
+      box-shadow: 0 8px 32px #2563eb22;
+      padding: 2rem 1.2rem 1.2rem 1.2rem;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 480px;
+    }
+    .chat-messages {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      margin-bottom: 1.2rem;
+      padding-right: 0.5rem;
+      max-height: 55vh;
+    }
+    .chat-message {
+      background: #f1f5ff;
+      border-radius: 1rem;
+      margin-bottom: 0.7rem;
+      padding: 0.7rem 1rem 0.5rem 1rem;
+      color: #222;
+      font-size: 1rem;
+      box-shadow: 0 2px 8px #2563eb11;
+      position: relative;
+      word-break: break-word;
+      transition: background 0.2s;
+    }
+    .chat-message.me {
+      background: #2563eb;
+      color: #fff;
+      margin-left: 2.5rem;
+      text-align: right;
+    }
+    .chat-user {
+      font-weight: 700;
+      color: #2563eb;
+      margin-right: 0.5em;
+    }
+    .chat-message.me .chat-user {
+      color: #fff;
+    }
+    .chat-text {
+      margin-right: 0.5em;
+    }
+    .chat-time {
+      font-size: 0.85em;
+      color: #64748b;
+      margin-left: 0.5em;
+    }
+    .chat-message.me .chat-time {
+      color: #e0e7ff;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .chat-input {
+      flex: 1 1 auto;
+      padding: 0.8rem 1rem;
+      border-radius: 1rem;
+      border: 1px solid #c7d2fe;
+      font-size: 1rem;
+      outline: none;
+      background: #f8fafc;
+      transition: border 0.2s;
+    }
+    .chat-input:focus {
+      border: 1.5px solid #2563eb;
+      background: #fff;
+    }
+    .chat-send-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 1rem;
+      padding: 0 1.5rem;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      box-shadow: 0 2px 8px #2563eb22;
+    }
+    .chat-send-btn:hover, .chat-send-btn:focus {
+      background: #1e40af;
+    }
+    @media (max-width: 600px) {
+      .chat-container {
+        max-width: 100vw;
+        border-radius: 0;
+        padding: 1rem 0.2rem 0.7rem 0.2rem;
+      }
+      header {
+        padding: 1.2rem 0 0.5rem 0;
+      }
+    }
+    footer {
+      text-align: center;
+      color: #64748b;
+      font-size: 0.97rem;
+      padding: 1.5rem 0 0.7rem 0;
+      letter-spacing: 0.02em;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/uploads/images/daylee.png" alt="Daylee Logo" class="logo" style="width:64px;height:64px;border-radius:16px;box-shadow:0 4px 16px #2563eb22;margin-bottom:0.5rem;animation: popIn 1.2s cubic-bezier(.4,0,.2,1);" />
+    <br>
+    <span class="logo">Daylee</span>
+    <div class="subtitle">A calendar app, reimagined.<br>Smarter, simpler, and more connected to your day.</div>
+  </header>
+  <br>
+  <div class="chat-container">
+    <div id="chatMessages" class="chat-messages"></div>
+    <form id="chatForm" class="chat-input-row" autocomplete="off">
+      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." required autocomplete="off">
+      <button type="submit" class="chat-send-btn">Send</button>
+    </form>
+  </div>
+  <footer>
+    Daylee – Organize your life, your way.
+  </footer>
+</body>
+</html>
